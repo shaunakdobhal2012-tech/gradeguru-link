@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResourcesRouteImport } from './routes/resources'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CalendarRouteImport } from './routes/calendar'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const ResourcesRoute = ResourcesRouteImport.update({
   id: '/resources',
   path: '/resources',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MessagesRoute = MessagesRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof CalendarRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
 }
 export interface FileRouteTypes {
@@ -80,9 +89,17 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/login'
     | '/messages'
+    | '/reset-password'
     | '/resources'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assignments' | '/calendar' | '/login' | '/messages' | '/resources'
+  to:
+    | '/'
+    | '/assignments'
+    | '/calendar'
+    | '/login'
+    | '/messages'
+    | '/reset-password'
+    | '/resources'
   id:
     | '__root__'
     | '/'
@@ -90,6 +107,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/login'
     | '/messages'
+    | '/reset-password'
     | '/resources'
   fileRoutesById: FileRoutesById
 }
@@ -99,6 +117,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ResourcesRoute: typeof ResourcesRoute
 }
 
@@ -109,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/resources'
       fullPath: '/resources'
       preLoaderRoute: typeof ResourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/messages': {
@@ -155,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ResourcesRoute: ResourcesRoute,
 }
 export const routeTree = rootRouteImport
