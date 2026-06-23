@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { assignments, notices, schedule, subjectById, daysUntil } from "@/lib/mock-data";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,6 +17,16 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const { user, profile } = useAuth();
+  const displayName = (profile?.name || user?.name || "there").split(" ")[0];
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
   const dueToday = assignments.filter((a) => daysUntil(a.dueDate) === 0 && a.status !== "submitted" && a.status !== "graded");
   const dueWeek = assignments.filter((a) => { const d = daysUntil(a.dueDate); return d > 0 && d <= 7; });
   const overdue = assignments.filter((a) => a.status === "overdue");
@@ -30,8 +41,10 @@ function Dashboard() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">Friday, June 19</p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">Good morning, Ada 👋</h1>
+          <p className="text-sm text-muted-foreground">{today}</p>
+          <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+            {greeting}, {displayName} 👋
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             You have <span className="font-medium text-foreground">{dueToday.length}</span> things due today and{" "}
             <span className="font-medium text-foreground">{notices.filter((n) => !n.read).length}</span> unread notices.
