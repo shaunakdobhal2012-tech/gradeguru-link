@@ -215,15 +215,25 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [grade, setGrade] = useState("");
+  const [age, setAge] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
+    const ageNum = age ? Number(age) : undefined;
+    if (ageNum !== undefined && (!Number.isFinite(ageNum) || ageNum < 1 || ageNum > 129)) {
+      toast.error("Enter a valid age."); return;
+    }
     setSubmitting(true);
     try {
-      const { needsEmailConfirmation } = await signUp({ email, password, name, role });
+      const { needsEmailConfirmation } = await signUp({
+        email, password, name, role,
+        grade: grade.trim() || undefined,
+        age: ageNum,
+      });
       if (needsEmailConfirmation) {
         toast.success("Account created. Check your email to confirm your address.");
         onDone();
@@ -276,6 +286,18 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
             <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signup-email" type="email" autoComplete="email" required value={email}
               onChange={(e) => setEmail(e.target.value)} className="h-11 pl-9" placeholder="you@school.edu" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="signup-grade">Grade / class</Label>
+            <Input id="signup-grade" value={grade} onChange={(e) => setGrade(e.target.value)}
+              className="h-11" placeholder="e.g. Grade 11" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="signup-age">Age</Label>
+            <Input id="signup-age" type="number" min={1} max={129} value={age}
+              onChange={(e) => setAge(e.target.value)} className="h-11" placeholder="16" />
           </div>
         </div>
         <div className="space-y-2">
