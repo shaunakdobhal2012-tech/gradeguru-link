@@ -17,6 +17,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -95,24 +96,27 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AuthedShell />
+        <Toaster richColors position="top-right" />
       </AuthProvider>
     </QueryClientProvider>
   );
 }
 
+const PUBLIC_ROUTES = new Set(["/login", "/reset-password"]);
+
 function AuthedShell() {
   const { isAuthenticated, isReady } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const isLoginRoute = pathname === "/login";
+  const isPublic = PUBLIC_ROUTES.has(pathname);
 
   useEffect(() => {
-    if (isReady && !isAuthenticated && !isLoginRoute) {
+    if (isReady && !isAuthenticated && !isPublic) {
       navigate({ to: "/login", replace: true });
     }
-  }, [isReady, isAuthenticated, isLoginRoute, navigate]);
+  }, [isReady, isAuthenticated, isPublic, navigate]);
 
-  if (isLoginRoute) return <Outlet />;
+  if (isPublic) return <Outlet />;
   if (!isReady || !isAuthenticated) {
     return <div className="min-h-dvh bg-background" aria-hidden />;
   }
@@ -131,3 +135,4 @@ function AuthedShell() {
     </SidebarProvider>
   );
 }
+
