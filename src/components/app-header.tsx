@@ -1,11 +1,22 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, LogOut, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/lib/auth";
 
 export function AppHeader() {
+  const { user, logout } = useAuth();
+
   return (
     <header className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border bg-background/80 px-3 py-2.5 backdrop-blur sm:px-6">
       <div className="flex items-center gap-2">
@@ -26,9 +37,29 @@ export function AppHeader() {
             3
           </Badge>
         </Button>
-        <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-accent text-accent-foreground">AO</AvatarFallback>
-        </Avatar>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 rounded-full p-0.5 outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" aria-label="Account menu">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="bg-accent text-accent-foreground">
+                  {user?.initials ?? "AO"}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="space-y-0.5">
+              <div className="text-sm font-medium leading-tight">{user?.name ?? "Guest"}</div>
+              <div className="text-xs font-normal capitalize text-muted-foreground">
+                {user?.role ?? "student"} · {user?.email}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
