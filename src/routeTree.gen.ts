@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AssignmentsRouteImport } from './routes/assignments'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +24,11 @@ const ResourcesRoute = ResourcesRouteImport.update({
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/resources': typeof ResourcesRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/resources': typeof ResourcesRoute
 }
@@ -60,19 +68,27 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
+  '/login': typeof LoginRoute
   '/messages': typeof MessagesRoute
   '/resources': typeof ResourcesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/assignments' | '/calendar' | '/messages' | '/resources'
+  fullPaths:
+    | '/'
+    | '/assignments'
+    | '/calendar'
+    | '/login'
+    | '/messages'
+    | '/resources'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assignments' | '/calendar' | '/messages' | '/resources'
+  to: '/' | '/assignments' | '/calendar' | '/login' | '/messages' | '/resources'
   id:
     | '__root__'
     | '/'
     | '/assignments'
     | '/calendar'
+    | '/login'
     | '/messages'
     | '/resources'
   fileRoutesById: FileRoutesById
@@ -81,6 +97,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssignmentsRoute: typeof AssignmentsRoute
   CalendarRoute: typeof CalendarRoute
+  LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRoute
   ResourcesRoute: typeof ResourcesRoute
 }
@@ -99,6 +116,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -129,19 +153,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssignmentsRoute: AssignmentsRoute,
   CalendarRoute: CalendarRoute,
+  LoginRoute: LoginRoute,
   MessagesRoute: MessagesRoute,
   ResourcesRoute: ResourcesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

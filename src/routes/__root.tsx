@@ -4,6 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -14,6 +16,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -90,17 +93,41 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-dvh w-full">
-          <AppSidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
-            <AppHeader />
-            <main className="flex-1 px-3 py-5 sm:px-6 sm:py-7">
-              <Outlet />
-            </main>
-          </div>
-        </div>
-      </SidebarProvider>
+      <AuthProvider>
+        <AuthedShell />
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthedShell() {
+  const { isAuthenticated, isReady } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const isLoginRoute = pathname === "/login";
+
+  useEffect(() => {
+    if (isReady && !isAuthenticated && !isLoginRoute) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [isReady, isAuthenticated, isLoginRoute, navigate]);
+
+  if (isLoginRoute) return <Outlet />;
+  if (!isReady || !isAuthenticated) {
+    return <div className="min-h-dvh bg-background" aria-hidden />;
+  }
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-dvh w-full">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppHeader />
+          <main className="flex-1 px-3 py-5 sm:px-6 sm:py-7">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
