@@ -1,74 +1,117 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 export type UserRole = "student" | "teacher" | "parent";
 
 export type AuthUser = {
-  name: string;
+  id: string;
   email: string;
+  name: string;
   role: UserRole;
   initials: string;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isReady: boolean;
-  login: (input: { email: string; password: string; role: UserRole; remember: boolean }) => Promise<AuthUser>;
-  logout: () => void;
+  signIn: (input: { email: string; password: string }) => Promise<void>;
+  signUp: (input: { email: string; password: string; name: string; role: UserRole }) => Promise<{ needsEmailConfirmation: boolean }>;
+  signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 };
 
-const STORAGE_KEY = "scholaria.auth.user";
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function initialsFromEmail(email: string) {
-  const name = email.split("@")[0].replace(/[._-]+/g, " ").trim();
-  const parts = name.split(/\s+/).filter(Boolean);
+function initialsFrom(name: string, email: string) {
+  const base = (name && name.trim()) || email.split("@")[0].replace(/[._-]+/g, " ");
+  const parts = base.split(/\s+/).filter(Boolean);
   const letters = (parts[0]?.[0] ?? "S") + (parts[1]?.[0] ?? parts[0]?.[1] ?? "");
   return letters.toUpperCase();
 }
 
-function readStored(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY) ?? window.sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  } catch {
-    return null;
-  }
+function toAuthUser(u: User | null | undefined): AuthUser | null {
+  if (!u) return null;
+  const meta = (u.user_metadata ?? {}) as { name?: string; full_name?: string; role?: UserRole };
+  const name = meta.name || meta.full_name || (u.email?.split("@")[0] ?? "User");
+  const role: UserRole = meta.role === "teacher" || meta.role === "parent" ? meta.role : "student";
+  return { id: u.id, email: u.email ?? "", name, role, initials: initialsFrom(name, u.email ?? "") };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    setUser(readStored());
-    setIsReady(true);
+    // Register listener FIRST, then read existing session
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setUser(toAuthUser(s?.user));
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(toAuthUser(data.session?.user));
+      setIsReady(true);
+    });
+
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const login = useCallback<AuthContextValue["login"]>(async ({ email, password, role, remember }) => {
-    await new Promise((r) => setTimeout(r, 450));
-    if (!email || !password) throw new Error("Email and password are required.");
-    const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const next: AuthUser = { name, email, role, initials: initialsFromEmail(email) };
-    const store = remember ? window.localStorage : window.sessionStorage;
-    store.setItem(STORAGE_KEY, JSON.stringify(next));
-    (remember ? window.sessionStorage : window.localStorage).removeItem(STORAGE_KEY);
-    setUser(next);
-    return next;
+  const signIn = useCallback(async ({ email, password }: { email: string; password: string }) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   }, []);
 
-  const logout = useCallback(() => {
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.sessionStorage.removeItem(STORAGE_KEY);
-    setUser(null);
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isReady, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const signUp = useCallback(
+    async ({ email, password, name, role }: { email: string; password: string; name: string; role: UserRole }) => {
+      const redirect = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name, role }, emailRedirectTo: redirect },
+      });
+      if (error) throw error;
+      return { needsEmailConfirmation: !data.session };
+    },
+    [],
   );
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const redirect = typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+    if (error) throw error;
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      session,
+      isAuthenticated: !!session,
+      isReady,
+      signIn,
+      signUp,
+      signOut,
+      sendPasswordReset,
+      updatePassword,
+    }),
+    [user, session, isReady, signIn, signUp, signOut, sendPasswordReset, updatePassword],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
