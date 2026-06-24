@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { DeadlineTetris } from "@/components/deadline-tetris";
 import { events } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/calendar")({
