@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TetrisRouteImport } from './routes/tetris'
 import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -18,6 +19,11 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AssignmentsRouteImport } from './routes/assignments'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TetrisRoute = TetrisRouteImport.update({
+  id: '/tetris',
+  path: '/tetris',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResourcesRoute = ResourcesRouteImport.update({
   id: '/resources',
   path: '/resources',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/messages': typeof MessagesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/tetris': typeof TetrisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/messages': typeof MessagesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/tetris': typeof TetrisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/messages': typeof MessagesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/resources': typeof ResourcesRoute
+  '/tetris': typeof TetrisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/reset-password'
     | '/resources'
+    | '/tetris'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/reset-password'
     | '/resources'
+    | '/tetris'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/messages'
     | '/reset-password'
     | '/resources'
+    | '/tetris'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,10 +144,18 @@ export interface RootRouteChildren {
   MessagesRoute: typeof MessagesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ResourcesRoute: typeof ResourcesRoute
+  TetrisRoute: typeof TetrisRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tetris': {
+      id: '/tetris'
+      path: '/tetris'
+      fullPath: '/tetris'
+      preLoaderRoute: typeof TetrisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resources': {
       id: '/resources'
       path: '/resources'
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   MessagesRoute: MessagesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ResourcesRoute: ResourcesRoute,
+  TetrisRoute: TetrisRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

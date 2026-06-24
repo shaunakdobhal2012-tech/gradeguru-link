@@ -7,6 +7,7 @@ import {
   MessagesSquare,
   GraduationCap,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,6 +26,7 @@ const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Assignments", url: "/assignments", icon: ClipboardList },
   { title: "Calendar", url: "/calendar", icon: CalendarIcon },
+  { title: "Deadline Tetris", url: "/tetris", icon: Sparkles },
   { title: "Resources", url: "/resources", icon: BookOpen },
   { title: "Messages", url: "/messages", icon: MessagesSquare },
 ];
