@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Assignments", url: "/assignments", icon: ClipboardList },
   { title: "Calendar", url: "/calendar", icon: CalendarIcon },
   { title: "Resources", url: "/resources", icon: BookOpen },

@@ -102,7 +102,7 @@ function RootComponent() {
   );
 }
 
-const PUBLIC_ROUTES = new Set(["/login", "/reset-password"]);
+const PUBLIC_ROUTES = new Set(["/", "/login", "/reset-password"]);
 
 function AuthedShell() {
   const { isAuthenticated, isReady } = useAuth();
@@ -112,7 +112,7 @@ function AuthedShell() {
 
   useEffect(() => {
     if (isReady && !isAuthenticated && !isPublic) {
-      navigate({ to: "/login", replace: true });
+      navigate({ to: "/", replace: true });
     }
   }, [isReady, isAuthenticated, isPublic, navigate]);
 

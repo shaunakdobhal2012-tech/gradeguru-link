@@ -1,189 +1,419 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, Clock, Calendar as CalIcon, Upload, FileUp, Pin, ChevronRight, Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import {
+  GraduationCap,
+  AlertTriangle,
+  Layers,
+  Sparkles,
+  CheckCircle2,
+  ArrowRight,
+  Clock,
+  Bell,
+  Calendar,
+  BookOpen,
+  Menu,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { assignments, notices, schedule, subjectById, daysUntil } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Scholaria" },
-      { name: "description", content: "Your day at a glance: priority deadlines, today's classes and the latest school notices." },
+      { title: "Scholaria — One calm hub for school" },
+      {
+        name: "description",
+        content:
+          "Scholaria unifies assignments, notices, schedules and resources into one priority-aware dashboard. Stop searching, start learning.",
+      },
+      { property: "og:title", content: "Scholaria — One calm hub for school" },
+      {
+        property: "og:description",
+        content:
+          "A unified student dashboard that turns scattered school chaos into calm clarity.",
+      },
     ],
   }),
-  component: Dashboard,
+  component: LandingPage,
 });
 
-function Dashboard() {
-  const { user, profile } = useAuth();
-  const displayName = (profile?.name || user?.name || "there").split(" ")[0];
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
-  })();
-  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+const SECTIONS = [
+  { id: "problem", label: "The Problem" },
+  { id: "causes", label: "Effects & Causes" },
+  { id: "solution", label: "The Solution" },
+];
 
-  const dueToday = assignments.filter((a) => daysUntil(a.dueDate) === 0 && a.status !== "submitted" && a.status !== "graded");
-  const dueWeek = assignments.filter((a) => { const d = daysUntil(a.dueDate); return d > 0 && d <= 7; });
-  const overdue = assignments.filter((a) => a.status === "overdue");
+function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const [activeId, setActiveId] = useState("problem");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const ctaTarget = isAuthenticated ? "/dashboard" : "/login";
+  const ctaLabel = isAuthenticated ? "Open your dashboard" : "Get Started Free";
 
-  const priorityCards = [
-    { label: "Overdue", count: overdue.length, tone: "destructive", icon: AlertCircle, hint: "Action needed" },
-    { label: "Due today", count: dueToday.length, tone: "warning", icon: Clock, hint: "Finish before midnight" },
-    { label: "Due this week", count: dueWeek.length, tone: "primary", icon: CalIcon, hint: "Plan ahead" },
-  ] as const;
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const ids = SECTIONS.map((s) => s.id);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveId(visible.target.id);
+      },
+      { rootMargin: "-40% 0px -50% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setMenuOpen(false);
+  };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{today}</p>
-          <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
-            {greeting}, {displayName} 👋
+    <div className="min-h-dvh bg-background text-foreground">
+      {/* Nav */}
+      <header
+        className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? "border-b border-border/60 bg-background/80 backdrop-blur-md"
+            : "border-b border-transparent bg-transparent"
+        }`}
+      >
+        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex min-w-0 items-center gap-2"
+          >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <span className="truncate text-base font-semibold tracking-tight">Scholaria</span>
+          </button>
+
+          <div className="hidden items-center gap-1 md:flex">
+            {SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => scrollTo(s.id)}
+                className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeId === s.id
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.label}
+                {activeId === s.id && (
+                  <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-primary" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-block"
+            >
+              Log in
+            </Link>
+            <Button asChild size="sm" className="shadow-sm">
+              <Link to={ctaTarget}>{ctaLabel}</Link>
+            </Button>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="grid h-9 w-9 place-items-center rounded-md border border-border md:hidden"
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+          </div>
+        </nav>
+        {menuOpen && (
+          <div className="border-t border-border/60 bg-background md:hidden">
+            <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => scrollTo(s.id)}
+                  className="rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted"
+                >
+                  {s.label}
+                </button>
+              ))}
+              <Link
+                to="/login"
+                className="rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted"
+              >
+                Log in
+              </Link>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              "radial-gradient(60% 60% at 50% 0%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%)",
+          }}
+        />
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <div className="mb-6 inline-flex animate-fade-in items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            Built for students who are tired of switching tabs
+          </div>
+          <h1 className="animate-fade-in text-4xl font-bold tracking-tight sm:text-6xl">
+            School, finally <span className="text-primary">in one place</span>.
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            You have <span className="font-medium text-foreground">{dueToday.length}</span> things due today and{" "}
-            <span className="font-medium text-foreground">{notices.filter((n) => !n.read).length}</span> unread notices.
+          <p className="mx-auto mt-6 max-w-2xl animate-fade-in text-lg text-muted-foreground sm:text-xl">
+            Scholaria turns the chaos of WhatsApp pings, classroom links and forgotten portals into a
+            single, calm hub — so you always know what's due and where to focus.
+          </p>
+          <div className="mt-8 flex animate-fade-in flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="hover-scale shadow-md">
+              <Link to={ctaTarget}>
+                {ctaLabel} <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="lg" onClick={() => scrollTo("problem")}>
+              See how it works
+            </Button>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Free for students · No credit card · Setup in under a minute
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm"><FileUp className="mr-1.5 h-4 w-4" /> Upload notes</Button>
-          <Button size="sm"><Upload className="mr-1.5 h-4 w-4" /> Submit assignment</Button>
+      </section>
+
+      {/* Problem */}
+      <Section
+        id="problem"
+        eyebrow="The Problem"
+        title="School information lives everywhere — except where you need it."
+        intro="Students lose hours every week hunting for assignments, notices and deadlines across WhatsApp groups, Google Classroom, school portals and email threads. The work isn't the hard part. Finding the work is."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: Bell, label: "WhatsApp pings", body: "Important updates buried under memes and side-chats." },
+            { icon: BookOpen, label: "Google Classroom", body: "Per-subject silos with no shared timeline." },
+            { icon: Layers, label: "School portals", body: "Slow logins, scattered PDFs, broken links." },
+            { icon: Clock, label: "Email threads", body: "Deadline reminders lost in promotional noise." },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-destructive/40 hover:shadow-lg"
+            >
+              <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg bg-destructive/10 text-destructive">
+                <c.icon className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-semibold">{c.label}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {priorityCards.map((c) => (
-          <Card key={c.label} className="overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm text-muted-foreground">{c.label}</p>
-                  <p className="mt-1 text-3xl font-bold tabular-nums">{c.count}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{c.hint}</p>
-                </div>
-                <div
-                  className="grid h-12 w-12 shrink-0 place-items-center rounded-xl"
-                  style={{
-                    backgroundColor:
-                      c.tone === "destructive" ? "color-mix(in oklab, var(--destructive) 15%, transparent)"
-                      : c.tone === "warning" ? "color-mix(in oklab, var(--warning) 25%, transparent)"
-                      : "color-mix(in oklab, var(--primary) 14%, transparent)",
-                    color:
-                      c.tone === "destructive" ? "var(--destructive)"
-                      : c.tone === "warning" ? "var(--warning-foreground)"
-                      : "var(--primary)",
-                  }}
-                >
-                  <c.icon className="h-6 w-6" />
-                </div>
+        <div className="mt-8 rounded-2xl border border-destructive/20 bg-destructive/5 p-6 sm:p-8">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <p className="text-base leading-relaxed sm:text-lg">
+              The result is missed deadlines, broken focus and a constant, low-grade panic that school is
+              about to surprise you — again.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* Causes */}
+      <Section
+        id="causes"
+        eyebrow="The Effects & Causes"
+        title="The real problem isn't you. It's fragmented edtech."
+        intro="The average school uses 60+ disconnected tools. Each one solves a slice of the problem and pushes the integration work onto students. The cost compounds: every minute spent searching is a minute not spent learning — and it hits at-risk students hardest."
+        tone="warning"
+      >
+        <div className="grid gap-5 md:grid-cols-3">
+          {[
+            { stat: "60+", label: "Disconnected tools", body: "Average platforms used across a single school year." },
+            { stat: "7 hrs", label: "Lost per week", body: "Time students spend hunting for information they already have access to." },
+            { stat: "1 in 3", label: "Missed deadlines", body: "Submissions slip not from lack of effort — but lack of visibility." },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+            >
+              <p className="text-4xl font-bold text-primary">{c.stat}</p>
+              <p className="mt-2 text-sm font-semibold">{c.label}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <div className="rounded-xl border border-border bg-muted/30 p-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Root cause
+            </h3>
+            <p className="mt-2 text-lg font-medium leading-snug">
+              Schools buy tools. Students inherit the integration work.
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Every platform was designed in isolation. None of them know about each other — so the only
+              place they finally connect is inside a stressed student's head.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/30 p-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              The compounding cost
+            </h3>
+            <p className="mt-2 text-lg font-medium leading-snug">
+              Lost productivity. Lower grades. Quiet, daily stress.
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              The students who can least afford to lose time — those juggling jobs, family, or learning
+              differences — feel it first and feel it worst.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* Solution */}
+      <Section
+        id="solution"
+        eyebrow="The Solution"
+        title="One calm hub. Everything that matters, in priority order."
+        intro="Scholaria aggregates assignments, notices, schedules and syllabus-relevant resources from across your school's tools — then surfaces what's due, what's urgent and what's next. No more digging. Just clarity."
+        tone="primary"
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: Clock, label: "Priority-aware", body: "Overdue, due today, due this week — sorted by what actually matters now." },
+            { icon: Calendar, label: "Unified schedule", body: "Classes, exams and deadlines on a single timeline you can trust." },
+            { icon: BookOpen, label: "Resources that fit", body: "Study materials linked to your syllabus, not a generic library." },
+            { icon: Bell, label: "Calm notifications", body: "One quiet inbox for school notices — no group chat noise." },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg"
+            >
+              <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary transition-transform group-hover:scale-110">
+                <c.icon className="h-5 w-5" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <h3 className="text-sm font-semibold">{c.label}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
+            </div>
+          ))}
+        </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Pin className="h-4 w-4 text-primary" /> Notice board
-            </CardTitle>
-            <Link to="/messages" className="text-xs font-medium text-primary hover:underline">View all</Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {notices.map((n) => (
-              <div
-                key={n.id}
-                className="flex gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/40"
-              >
-                <div
-                  className="mt-1 h-2 w-2 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor:
-                      n.priority === "urgent" ? "var(--destructive)"
-                      : n.priority === "important" ? "var(--warning)"
-                      : "var(--muted-foreground)",
-                  }}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className={`truncate text-sm ${n.read ? "font-medium" : "font-semibold"}`}>{n.title}</p>
-                    {n.priority === "urgent" && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Urgent</Badge>}
-                    {n.priority === "important" && <Badge className="h-5 bg-warning px-1.5 text-[10px] text-warning-foreground hover:bg-warning/90">Important</Badge>}
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{n.body}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{n.sender} · {n.timestamp}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <ul className="mt-10 grid gap-3 rounded-2xl border border-border bg-card p-6 sm:grid-cols-2 sm:p-8">
+          {[
+            "Know exactly what's due — without opening five apps",
+            "See the urgent stuff first, every single time",
+            "Catch notices the moment they're posted",
+            "Spend your energy learning, not searching",
+          ].map((line) => (
+            <li key={line} className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <span className="text-sm sm:text-base">{line}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Today's schedule</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1.5">
-            {schedule.map((s, i) => {
-              const isNow = i === 2;
-              return (
-                <div
-                  key={s.time}
-                  className={`flex items-center gap-3 rounded-lg px-2.5 py-2 ${isNow ? "bg-primary/8 ring-1 ring-primary/30" : "hover:bg-muted/50"}`}
-                  style={isNow ? { backgroundColor: "color-mix(in oklab, var(--primary) 8%, transparent)" } : undefined}
-                >
-                  <div className="w-12 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">{s.time}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{s.subject}</p>
-                    <p className="truncate text-xs text-muted-foreground">{s.room} · {s.teacher}</p>
-                  </div>
-                  {isNow && <Badge className="h-5 bg-primary px-1.5 text-[10px]">Now</Badge>}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-primary" /> Up next
-          </CardTitle>
-          <Link to="/assignments" className="text-xs font-medium text-primary hover:underline">All assignments</Link>
-        </CardHeader>
-        <CardContent className="divide-y divide-border">
-          {[...dueToday, ...dueWeek].slice(0, 5).map((a) => {
-            const sub = subjectById(a.subject);
-            const d = daysUntil(a.dueDate);
-            return (
-              <Link
-                key={a.id}
-                to="/assignments"
-                className="flex items-center gap-3 py-3 transition-colors hover:bg-muted/40"
-              >
-                <div className="h-9 w-1 shrink-0 rounded-full" style={{ backgroundColor: sub.color }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{a.title}</p>
-                  <p className="text-xs text-muted-foreground">{sub.name}</p>
-                </div>
-                <div className="hidden text-right sm:block">
-                  <p className="text-xs font-medium">
-                    {d === 0 ? "Due today" : d === 1 ? "Tomorrow" : `In ${d} days`}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{a.dueDate}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      {/* Final CTA */}
+      <section className="px-6 pb-24">
+        <div
+          className="mx-auto max-w-4xl overflow-hidden rounded-3xl border border-primary/20 p-10 text-center sm:p-16"
+          style={{
+            background:
+              "linear-gradient(135deg, color-mix(in oklab, var(--primary) 12%, var(--background)), color-mix(in oklab, var(--primary) 4%, var(--background)))",
+          }}
+        >
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            School is stressful enough.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
+            Let Scholaria handle the chaos so you can focus on what you actually came to do — learn.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild size="lg" className="hover-scale shadow-md">
+              <Link to={ctaTarget}>
+                {ctaLabel} <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link to="/login">I already have an account</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4 text-primary" />
+            <span>© {new Date().getFullYear()} Scholaria</span>
+          </div>
+          <div>Made for students who'd rather be learning.</div>
+        </div>
+      </footer>
     </div>
+  );
+}
+
+function Section({
+  id,
+  eyebrow,
+  title,
+  intro,
+  tone = "default",
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  intro: string;
+  tone?: "default" | "primary" | "warning";
+  children: React.ReactNode;
+}) {
+  const toneClasses =
+    tone === "primary"
+      ? "text-primary"
+      : tone === "warning"
+      ? "text-destructive"
+      : "text-muted-foreground";
+  return (
+    <section id={id} className="scroll-mt-24 px-6 py-20 sm:py-28">
+      <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-3xl text-center">
+          <p
+            className={`text-xs font-semibold uppercase tracking-[0.18em] ${toneClasses}`}
+          >
+            {eyebrow}
+          </p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+            {intro}
+          </p>
+        </div>
+        <div className="mt-12">{children}</div>
+      </div>
+    </section>
   );
 }
