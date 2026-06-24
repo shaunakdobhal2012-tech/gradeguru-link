@@ -30,12 +30,22 @@ function CalendarPage() {
     return i - monthStartOffset + 1;
   });
 
+  const [showTetris, setShowTetris] = useState(false);
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calendar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">June 2026</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calendar</h1>
+          <p className="mt-1 text-sm text-muted-foreground">June 2026</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5">
+          <Switch id="tetris-toggle" checked={showTetris} onCheckedChange={setShowTetris} />
+          <Label htmlFor="tetris-toggle" className="text-xs cursor-pointer">Deadline Tetris view</Label>
+        </div>
       </div>
+
+      {showTetris && <DeadlineTetris compact />}
 
       <div className="flex flex-wrap gap-3 text-xs">
         {Object.entries(typeColor).map(([k, v]) => (
