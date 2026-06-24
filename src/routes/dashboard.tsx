@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { assignments, notices, schedule, subjectById, daysUntil } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — Scholaria" },
