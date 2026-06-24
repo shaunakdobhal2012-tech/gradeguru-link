@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AssignmentsRouteImport } from './routes/assignments'
+import { Route as IndexRouteImport } from './routes/index'
 
 const ResourcesRoute = ResourcesRouteImport.update({
   id: '/resources',
@@ -52,8 +53,14 @@ const AssignmentsRoute = AssignmentsRouteImport.update({
   path: '/assignments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/resources': typeof ResourcesRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
@@ -73,6 +81,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/assignments': typeof AssignmentsRoute
   '/calendar': typeof CalendarRoute
   '/dashboard': typeof DashboardRoute
@@ -84,6 +93,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/assignments'
     | '/calendar'
     | '/dashboard'
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/resources'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/assignments'
     | '/calendar'
     | '/dashboard'
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/resources'
   id:
     | '__root__'
+    | '/'
     | '/assignments'
     | '/calendar'
     | '/dashboard'
@@ -112,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AssignmentsRoute: typeof AssignmentsRoute
   CalendarRoute: typeof CalendarRoute
   DashboardRoute: typeof DashboardRoute
@@ -172,10 +185,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssignmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AssignmentsRoute: AssignmentsRoute,
   CalendarRoute: CalendarRoute,
   DashboardRoute: DashboardRoute,
