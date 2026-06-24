@@ -47,7 +47,7 @@ function LoginPage() {
   const [tab, setTab] = useState<"signin" | "signup">("signin");
 
   useEffect(() => {
-    if (isReady && isAuthenticated) navigate({ to: "/" });
+    if (isReady && isAuthenticated) navigate({ to: "/dashboard" });
   }, [isReady, isAuthenticated, navigate]);
 
   return (
@@ -117,7 +117,7 @@ function SignInForm() {
     try {
       await signIn({ email, password });
       toast.success("Welcome back!");
-      navigate({ to: "/" });
+      navigate({ to: "/dashboard" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Sign in failed";
       toast.error(msg);
@@ -239,7 +239,7 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
         onDone();
       } else {
         toast.success("Welcome to Scholaria!");
-        navigate({ to: "/" });
+        navigate({ to: "/dashboard" });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign up failed");
