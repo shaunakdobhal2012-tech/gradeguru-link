@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { DeadlineTetris } from "@/components/deadline-tetris";
 import { events } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/calendar")({
@@ -26,12 +30,22 @@ function CalendarPage() {
     return i - monthStartOffset + 1;
   });
 
+  const [showTetris, setShowTetris] = useState(false);
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calendar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">June 2026</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calendar</h1>
+          <p className="mt-1 text-sm text-muted-foreground">June 2026</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5">
+          <Switch id="tetris-toggle" checked={showTetris} onCheckedChange={setShowTetris} />
+          <Label htmlFor="tetris-toggle" className="text-xs cursor-pointer">Deadline Tetris view</Label>
+        </div>
       </div>
+
+      {showTetris && <DeadlineTetris compact />}
 
       <div className="flex flex-wrap gap-3 text-xs">
         {Object.entries(typeColor).map(([k, v]) => (
