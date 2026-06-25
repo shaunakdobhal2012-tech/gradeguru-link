@@ -12,16 +12,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Sparkles, Save, Wand as Wand2, RotateCcw, TriangleAlert as AlertTriangle, Scissors } from "lucide-react";
-import { schedule, subjectById } from "@/lib/mock-data";
-import {
-  assignmentsStore,
-  chunksFor,
-  useAssignmentsStore,
-  type Assignment,
-  type Chunk,
-  type ChunkPlacement,
-} from "@/lib/assignments-store";
+import { Sparkles, Save, Wand2, RotateCcw } from "lucide-react";
+import { assignments, schedule, subjectById } from "@/lib/mock-data";
 
 // Week of June 22–28, 2026 (Mon–Sun)
 const WEEK = [
@@ -34,13 +26,12 @@ const WEEK = [
   { key: "Sun", date: "2026-06-28" },
 ];
 
-const START_HOUR = 6;
-const END_HOUR = 22;
+const START_HOUR = 6; // 6 AM
+const END_HOUR = 22; // 10 PM
 const SLOT_MIN = 30;
 const SLOTS_PER_HOUR = 60 / SLOT_MIN;
-const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR;
+const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR; // 32
 const SLOT_PX = 22;
-const DAILY_HOMEWORK_CAP_MIN = 240; // 4 hours of assignment time / day
 
 function fmtTime(slotIdx: number) {
   const total = START_HOUR * 60 + slotIdx * SLOT_MIN;
@@ -56,6 +47,7 @@ function parseHHMM(t: string) {
   return h * 60 + m;
 }
 
+// Classes pulled from "Today's schedule" data — recurring Mon–Fri, 1 hr each
 function classesFor(dayIdx: number) {
   if (dayIdx > 4) return [];
   return schedule.map((s) => {
@@ -64,93 +56,71 @@ function classesFor(dayIdx: number) {
     return {
       id: `class-${dayIdx}-${s.time}`,
       slot,
-      length: 2,
+      length: 2, // 1 hr
       label: s.subject,
       room: s.room,
     };
   });
 }
 
-function dueDayIdx(dueDate: string): number {
-  // Index in WEEK that this due date falls on (or -1 / 6+ if outside).
-  const idx = WEEK.findIndex((d) => d.date === dueDate);
-  if (idx >= 0) return idx;
-  const due = new Date(dueDate).getTime();
-  const monday = new Date(WEEK[0].date).getTime();
-  if (due < monday) return -1; // overdue relative to this week
-  return WEEK.length - 1; // beyond this week — clamp to end
-}
+type Placement = {
+  assignmentId: string;
+  dayIdx: number;
+  slot: number;
+};
+
+type Block = {
+  assignmentId: string;
+  durationMin: number; // editable
+};
+
+const pendingAssignments = assignments.filter(
+  (a) => a.status === "pending" || a.status === "in-progress" || a.status === "overdue",
+);
 
 export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
-  const { assignments, placements, flagged } = useAssignmentsStore();
+  const [blocks, setBlocks] = useState<Record<string, Block>>(() =>
+    Object.fromEntries(
+      pendingAssignments.map((a) => [a.id, { assignmentId: a.id, durationMin: 60 }]),
+    ),
+  );
+  const [placements, setPlacements] = useState<Placement[]>([]);
   const [heatmap, setHeatmap] = useState(false);
   const [flashCell, setFlashCell] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const pending = useMemo(
-    () =>
-      assignments.filter(
-        (a) =>
-          a.status === "pending" ||
-          a.status === "in-progress" ||
-          a.status === "overdue",
-      ),
-    [assignments],
-  );
-  const assignmentById = useMemo(() => {
-    const m = new Map<string, Assignment>();
-    assignments.forEach((a) => m.set(a.id, a));
-    return m;
-  }, [assignments]);
+  const placedIds = new Set(placements.map((p) => p.assignmentId));
+  const unplaced = pendingAssignments.filter((a) => !placedIds.has(a.id));
 
-  const allChunks = useMemo(() => {
-    const out: Chunk[] = [];
-    pending.forEach((a) => out.push(...chunksFor(a)));
-    return out;
-  }, [pending]);
-
-  const chunkById = useMemo(() => {
-    const m = new Map<string, Chunk>();
-    allChunks.forEach((c) => m.set(c.chunkId, c));
-    return m;
-  }, [allChunks]);
-
-  const placedIds = new Set(placements.map((p) => p.chunkId));
-  const unplaced = allChunks.filter((c) => !placedIds.has(c.chunkId));
-
-  function chunkLen(durationMin: number) {
-    return Math.max(1, Math.round(durationMin / SLOT_MIN));
+  function blockLen(id: string) {
+    return Math.max(1, Math.round((blocks[id]?.durationMin ?? 60) / SLOT_MIN));
   }
 
-  function occupiedSlots(dayIdx: number, exceptChunkId?: string) {
+  function occupiedSlots(dayIdx: number, exceptId?: string) {
     const occ = new Set<number>();
     classesFor(dayIdx).forEach((c) => {
       for (let i = 0; i < c.length; i++) occ.add(c.slot + i);
     });
     placements
-      .filter((p) => p.dayIdx === dayIdx && p.chunkId !== exceptChunkId)
+      .filter((p) => p.dayIdx === dayIdx && p.assignmentId !== exceptId)
       .forEach((p) => {
-        const len = chunkLen(p.durationMin);
+        const len = blockLen(p.assignmentId);
         for (let i = 0; i < len; i++) occ.add(p.slot + i);
       });
     return occ;
   }
 
-  function dayAssignmentMin(dayIdx: number) {
-    return placements
+  function dayHours(dayIdx: number) {
+    let mins = 0;
+    classesFor(dayIdx).forEach((c) => (mins += c.length * SLOT_MIN));
+    placements
       .filter((p) => p.dayIdx === dayIdx)
-      .reduce((sum, p) => sum + p.durationMin, 0);
-  }
-
-  function dayTotalHours(dayIdx: number) {
-    const classMin = classesFor(dayIdx).reduce(
-      (s, c) => s + c.length * SLOT_MIN,
-      0,
-    );
-    return (classMin + dayAssignmentMin(dayIdx)) / 60;
+      .forEach((p) => (mins += blocks[p.assignmentId]?.durationMin ?? 60));
+    return mins / 60;
   }
 
   function heatColor(hours: number) {
+    // 0 → green; 10+ → red
     const t = Math.min(1, hours / 10);
     const r = Math.round(34 + (239 - 34) * t);
     const g = Math.round(197 - (197 - 68) * t);
@@ -158,21 +128,15 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     return `rgba(${r}, ${g}, ${b}, 0.18)`;
   }
 
-  function tryPlace(chunkId: string, dayIdx: number, slot: number) {
-    const c = chunkById.get(chunkId);
-    if (!c) return false;
-    const len = chunkLen(c.durationMin);
+  function tryPlace(assignmentId: string, dayIdx: number, slot: number) {
+    const len = blockLen(assignmentId);
     if (slot < 0 || slot + len > TOTAL_SLOTS) return false;
-    const occ = occupiedSlots(dayIdx, chunkId);
+    const occ = occupiedSlots(dayIdx, assignmentId);
     for (let i = 0; i < len; i++) if (occ.has(slot + i)) return false;
-    assignmentsStore.placeChunk({
-      chunkId,
-      assignmentId: c.assignmentId,
-      partIndex: c.partIndex,
-      partsTotal: c.partsTotal,
-      durationMin: c.durationMin,
-      dayIdx,
-      slot,
+    setPlacements((prev) => {
+      const next = prev.filter((p) => p.assignmentId !== assignmentId);
+      next.push({ assignmentId, dayIdx, slot });
+      return next;
     });
     return true;
   }
@@ -183,145 +147,48 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     if (!ok) {
       const key = `${dayIdx}-${slot}`;
       setFlashCell(key);
-      const c = chunkById.get(draggingId);
-      const total = (dayAssignmentMin(dayIdx) + (c?.durationMin ?? 0)) / 60;
-      toast.error(`Won't fit — ${total.toFixed(1)}h of work on that day already.`);
+      const totalH = dayHours(dayIdx) + (blocks[draggingId]?.durationMin ?? 60) / 60;
+      toast.error(`That's ${totalH.toFixed(1)} hours of work — move something?`);
       setTimeout(() => setFlashCell(null), 700);
     }
     setDraggingId(null);
   }
 
-  // Smart auto-arrange with auto-split.
   function autoArrange() {
-    // 1. Sort by due date (overdue first → earlier first).
-    const sorted = [...pending].sort(
-      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+    // Greedy: longest first, earliest free slot Mon→Sun, avoid classes
+    const sorted = [...pendingAssignments].sort(
+      (a, b) => (blocks[b.id]?.durationMin ?? 60) - (blocks[a.id]?.durationMin ?? 60),
     );
-
-    // 2. Decide auto-splits (skip manual splits).
-    sorted.forEach((a) => {
-      if (a.splitManual) return;
-      if (a.estimateMin > 90) {
-        const parts = Math.min(5, Math.max(2, Math.ceil(a.estimateMin / 60)));
-        assignmentsStore.applyAutoSplit(a.id, parts);
-      }
-    });
-
-    // Re-read fresh state after split decisions.
-    const fresh = assignmentsStore.get().assignments.filter((a) =>
-      pending.some((p) => p.id === a.id),
-    );
-    const freshSorted = [...fresh].sort(
-      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-    );
-
-    // Per-day assignment-minutes ledger (classes do NOT count toward the 4h cap).
-    const assignmentMinByDay: number[] = WEEK.map(() => 0);
-    // Occupied slots ledger includes classes so we don't overlap them.
-    const occByDay: Set<number>[] = WEEK.map((_, d) => {
-      const set = new Set<number>();
+    const next: Placement[] = [];
+    const occByDay: Record<number, Set<number>> = {};
+    for (let d = 0; d < WEEK.length; d++) {
+      occByDay[d] = new Set<number>();
       classesFor(d).forEach((c) => {
-        for (let i = 0; i < c.length; i++) set.add(c.slot + i);
+        for (let i = 0; i < c.length; i++) occByDay[d].add(c.slot + i);
       });
-      return set;
-    });
-
-    const next: ChunkPlacement[] = [];
-    const flags: Record<string, string> = {};
-
-    // Returns candidate day indices in preference order for a given deadline day:
-    // weekdays first (Mon–Fri), then weekend, both ordered by proximity to deadline.
-    function candidateDays(lastDay: number): number[] {
-      const weekdays: number[] = [];
-      const weekend: number[] = [];
-      for (let d = lastDay; d >= 0; d--) {
-        (d < 5 ? weekdays : weekend).push(d);
-      }
-      // Forward overflow (after deadline but still within the week), weekdays first.
-      const fwdWeekdays: number[] = [];
-      const fwdWeekend: number[] = [];
-      for (let d = lastDay + 1; d < WEEK.length; d++) {
-        (d < 5 ? fwdWeekdays : fwdWeekend).push(d);
-      }
-      return [...weekdays, ...fwdWeekdays, ...weekend, ...fwdWeekend];
     }
-
-    function placeChunkInDay(c: Chunk, d: number): boolean {
-      const len = chunkLen(c.durationMin);
-      // 4h cap applies only to assignment time, not to classes.
-      if (assignmentMinByDay[d] + c.durationMin > DAILY_HOMEWORK_CAP_MIN) return false;
-      for (let s = 0; s + len <= TOTAL_SLOTS; s++) {
-        let ok = true;
-        for (let i = 0; i < len; i++) {
-          if (occByDay[d].has(s + i)) { ok = false; break; }
-        }
-        if (ok) {
-          for (let i = 0; i < len; i++) occByDay[d].add(s + i);
-          assignmentMinByDay[d] += c.durationMin;
-          next.push({
-            chunkId: c.chunkId,
-            assignmentId: c.assignmentId,
-            partIndex: c.partIndex,
-            partsTotal: c.partsTotal,
-            durationMin: c.durationMin,
-            dayIdx: d,
-            slot: s,
-          });
-          return true;
+    for (const a of sorted) {
+      const len = Math.max(1, Math.round((blocks[a.id]?.durationMin ?? 60) / SLOT_MIN));
+      let placed = false;
+      for (let d = 0; d < WEEK.length && !placed; d++) {
+        for (let s = 0; s + len <= TOTAL_SLOTS; s++) {
+          let ok = true;
+          for (let i = 0; i < len; i++) if (occByDay[d].has(s + i)) { ok = false; break; }
+          if (ok) {
+            for (let i = 0; i < len; i++) occByDay[d].add(s + i);
+            next.push({ assignmentId: a.id, dayIdx: d, slot: s });
+            placed = true;
+            break;
+          }
         }
       }
-      return false;
     }
-
-    for (const a of freshSorted) {
-      const chunks = chunksFor(a);
-      const lastDay = Math.min(WEEK.length - 1, Math.max(0, dueDayIdx(a.dueDate)));
-
-      // Build a per-chunk target day spreading backwards from the deadline,
-      // then resolve each chunk using weekday-first candidate ordering.
-      const placedChunks: boolean[] = [];
-      for (let i = chunks.length - 1; i >= 0; i--) {
-        const targetDay = Math.max(0, lastDay - (chunks.length - 1 - i));
-        // Pick the least-loaded candidate day (weekdays prioritised).
-        const candidates = candidateDays(targetDay);
-        // Sort candidates by current assignment load so we spread evenly,
-        // but preserve weekday-before-weekend preference within equal-load days.
-        const sorted = candidates.slice().sort(
-          (a, b) => assignmentMinByDay[a] - assignmentMinByDay[b],
-        );
-        // Re-inject weekday ordering: among days with equal load prefer weekdays.
-        const byLoad = sorted.sort((a, b) => {
-          const diff = assignmentMinByDay[a] - assignmentMinByDay[b];
-          if (diff !== 0) return diff;
-          // Tie-break: weekday (< 5) beats weekend.
-          return (a < 5 ? 0 : 1) - (b < 5 ? 0 : 1);
-        });
-
-        let placed = false;
-        for (const d of byLoad) {
-          placed = placeChunkInDay(chunks[i], d);
-          if (placed) break;
-        }
-        placedChunks[i] = placed;
-      }
-      if (placedChunks.some((p) => !p)) {
-        flags[a.id] = "Needs more time — extend deadline or split manually?";
-      }
-    }
-
-    assignmentsStore.setPlacements(next, flags);
-    const flaggedCount = Object.keys(flags).length;
-    if (flaggedCount > 0) {
-      toast.warning(
-        `Arranged ${next.length} blocks. ${flaggedCount} couldn't fit — flagged red.`,
-      );
-    } else {
-      toast.success(`Auto-arranged ${next.length} blocks around your classes.`);
-    }
+    setPlacements(next);
+    toast.success(`Auto-arranged ${next.length} assignments around your classes.`);
   }
 
   function clearAll() {
-    assignmentsStore.clearAllPlacements();
+    setPlacements([]);
   }
 
   function saveWeek() {
@@ -332,22 +199,24 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     const first = [...placements].sort(
       (a, b) => a.dayIdx - b.dayIdx || a.slot - b.slot,
     )[0];
-    const a = assignmentById.get(first.assignmentId);
-    if (!a) return;
+    const a = pendingAssignments.find((x) => x.id === first.assignmentId)!;
     toast.success("Week saved · gentle reminders scheduled", {
       description: `You planned to start your ${a.title} at ${fmtTime(first.slot)} on ${WEEK[first.dayIdx].key}.`,
       duration: 6000,
     });
   }
 
-  function updateDuration(assignmentId: string, mins: number) {
-    assignmentsStore.updateEstimate(assignmentId, mins);
+  function updateDuration(id: string, mins: number) {
+    setBlocks((prev) => ({
+      ...prev,
+      [id]: { assignmentId: id, durationMin: Math.max(30, Math.min(480, mins)) },
+    }));
   }
 
   const totals = useMemo(
-    () => WEEK.map((_, d) => dayTotalHours(d)),
+    () => WEEK.map((_, d) => dayHours(d)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [placements],
+    [placements, blocks],
   );
 
   return (
@@ -367,12 +236,10 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5">
               <Switch id="heat" checked={heatmap} onCheckedChange={setHeatmap} />
-              <Label htmlFor="heat" className="text-xs cursor-pointer">
-                Workload heatmap
-              </Label>
+              <Label htmlFor="heat" className="text-xs cursor-pointer">Workload heatmap</Label>
             </div>
             <Button size="sm" variant="outline" onClick={autoArrange}>
-              <Wand2 className="h-4 w-4 mr-1" /> Smart auto-arrange
+              <Wand2 className="h-4 w-4 mr-1" /> Auto-arrange
             </Button>
             <Button size="sm" variant="ghost" onClick={clearAll}>
               <RotateCcw className="h-4 w-4 mr-1" /> Clear
@@ -383,89 +250,45 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
           </div>
         </div>
 
-        <div className={`grid gap-4 ${compact ? "" : "lg:grid-cols-[280px_1fr]"}`}>
+        <div className={`grid gap-4 ${compact ? "" : "lg:grid-cols-[260px_1fr]"}`}>
           {/* Assignment tray */}
           <Card>
             <CardContent className="p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Pending blocks</h3>
-                <Badge variant="outline" className="text-[10px]">
-                  {unplaced.length} left
-                </Badge>
+                <Badge variant="outline" className="text-[10px]">{unplaced.length} left</Badge>
               </div>
               {unplaced.length === 0 && (
                 <p className="text-xs text-muted-foreground py-4 text-center">
-                  All chunks scheduled. Nice work.
+                  All assignments scheduled. Nice work.
                 </p>
               )}
-              <div className={`space-y-2 ${compact ? "max-h-48 overflow-y-auto" : ""}`}>
-                {unplaced.map((c) => {
-                  const a = assignmentById.get(c.assignmentId);
-                  if (!a) return null;
+              <div className={`space-y-2 ${compact ? "max-h-40 overflow-y-auto" : ""}`}>
+                {unplaced.map((a) => {
                   const sub = subjectById(a.subject);
-                  const isFlagged = !!flagged[a.id];
                   return (
                     <div
-                      key={c.chunkId}
+                      key={a.id}
                       draggable
-                      onDragStart={() => setDraggingId(c.chunkId)}
+                      onDragStart={() => setDraggingId(a.id)}
                       onDragEnd={() => setDraggingId(null)}
-                      className={`cursor-grab active:cursor-grabbing rounded-md border-l-4 border px-2 py-1.5 text-xs shadow-sm hover:shadow transition ${
-                        isFlagged
-                          ? "bg-destructive/10 border-destructive/60"
-                          : "bg-card"
-                      }`}
-                      style={
-                        isFlagged
-                          ? undefined
-                          : { borderLeftColor: sub.color }
-                      }
+                      className="cursor-grab active:cursor-grabbing rounded-md border-l-4 bg-card border px-2 py-1.5 text-xs shadow-sm hover:shadow transition"
+                      style={{ borderLeftColor: sub.color }}
                     >
-                      <div className="flex items-center gap-1 font-medium">
-                        <span className="truncate">{a.title}</span>
-                        {c.partsTotal > 1 && (
-                          <Badge
-                            variant="secondary"
-                            className="ml-auto shrink-0 text-[9px] px-1 py-0"
-                          >
-                            Part {c.partIndex}/{c.partsTotal}
-                            {a.splitManual ? "" : " · auto"}
-                          </Badge>
-                        )}
-                      </div>
-                      {isFlagged && (
-                        <div className="mt-1 flex items-start gap-1 text-[10px] text-destructive">
-                          <AlertTriangle className="h-3 w-3 mt-px shrink-0" />
-                          <span>{flagged[a.id]}</span>
-                        </div>
-                      )}
+                      <div className="font-medium truncate">{a.title}</div>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground">
-                          {sub.name}
-                        </span>
-                        {c.partsTotal === 1 ? (
-                          <>
-                            <Input
-                              type="number"
-                              min={15}
-                              max={600}
-                              step={15}
-                              value={a.estimateMin}
-                              onChange={(e) =>
-                                updateDuration(a.id, Number(e.target.value))
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              className="h-6 w-16 text-[10px] px-1 ml-auto"
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              min
-                            </span>
-                          </>
-                        ) : (
-                          <span className="ml-auto text-[10px] text-muted-foreground">
-                            {c.durationMin} min
-                          </span>
-                        )}
+                        <span className="text-[10px] text-muted-foreground">{sub.name}</span>
+                        <Input
+                          type="number"
+                          min={30}
+                          max={480}
+                          step={30}
+                          value={blocks[a.id]?.durationMin ?? 60}
+                          onChange={(e) => updateDuration(a.id, Number(e.target.value))}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-6 w-14 text-[10px] px-1 ml-auto"
+                        />
+                        <span className="text-[10px] text-muted-foreground">min</span>
                       </div>
                     </div>
                   );
@@ -478,11 +301,10 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
           <Card>
             <CardContent className="p-2 sm:p-3 overflow-x-auto">
               <div className="min-w-[640px]">
+                {/* Day headers */}
                 <div
                   className="grid sticky top-0 z-10 bg-card"
-                  style={{
-                    gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))`,
-                  }}
+                  style={{ gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))` }}
                 >
                   <div />
                   {WEEK.map((d, i) => (
@@ -497,10 +319,9 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
 
                 <div
                   className="grid relative"
-                  style={{
-                    gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))`,
-                  }}
+                  style={{ gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))` }}
                 >
+                  {/* time column */}
                   <div>
                     {Array.from({ length: TOTAL_SLOTS }, (_, s) => (
                       <div
@@ -522,6 +343,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                         background: heatmap ? heatColor(totals[dayIdx]) : undefined,
                       }}
                     >
+                      {/* slot grid */}
                       {Array.from({ length: TOTAL_SLOTS }, (_, s) => {
                         const key = `${dayIdx}-${s}`;
                         const flash = flashCell === key;
@@ -530,9 +352,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                             key={s}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={() => handleDrop(dayIdx, s)}
-                            className={`border-t ${
-                              s % 2 === 0 ? "border-border" : "border-border/40"
-                            } ${
+                            className={`border-t ${s % 2 === 0 ? "border-border" : "border-border/40"} ${
                               flash ? "bg-destructive/40" : "hover:bg-muted/40"
                             } transition-colors`}
                             style={{ height: SLOT_PX }}
@@ -540,83 +360,58 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                         );
                       })}
 
+                      {/* classes */}
                       {classesFor(dayIdx).map((c) => (
                         <Tooltip key={c.id}>
                           <TooltipTrigger asChild>
                             <div
                               className="absolute left-1 right-1 rounded-md bg-muted border border-border/60 px-1.5 py-1 text-[10px] overflow-hidden"
-                              style={{
-                                top: c.slot * SLOT_PX,
-                                height: c.length * SLOT_PX - 2,
-                              }}
+                              style={{ top: c.slot * SLOT_PX, height: c.length * SLOT_PX - 2 }}
                             >
                               <div className="font-medium truncate">{c.label}</div>
-                              <div className="text-muted-foreground truncate">
-                                {c.room}
-                              </div>
+                              <div className="text-muted-foreground truncate">{c.room}</div>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="text-xs">
-                              Class · {c.label} · {c.room}
-                            </p>
+                            <p className="text-xs">Class · {c.label} · {c.room}</p>
                           </TooltipContent>
                         </Tooltip>
                       ))}
 
+                      {/* placed blocks */}
                       {placements
                         .filter((p) => p.dayIdx === dayIdx)
                         .map((p) => {
-                          const a = assignmentById.get(p.assignmentId);
-                          if (!a) return null;
+                          const a = pendingAssignments.find((x) => x.id === p.assignmentId)!;
                           const sub = subjectById(a.subject);
-                          const len = chunkLen(p.durationMin);
-                          // Per-part opacity shading for visual linkage.
-                          const shade =
-                            p.partsTotal > 1
-                              ? 1 - (p.partIndex - 1) * (0.25 / Math.max(1, p.partsTotal - 1))
-                              : 1;
+                          const len = blockLen(p.assignmentId);
                           return (
-                            <Tooltip key={p.chunkId}>
+                            <Tooltip key={p.assignmentId}>
                               <TooltipTrigger asChild>
                                 <div
                                   draggable
-                                  onDragStart={() => setDraggingId(p.chunkId)}
+                                  onDragStart={() => setDraggingId(p.assignmentId)}
                                   onDragEnd={() => setDraggingId(null)}
                                   onDoubleClick={() =>
-                                    assignmentsStore.removePlacement(p.chunkId)
+                                    setPlacements((prev) =>
+                                      prev.filter((x) => x.assignmentId !== p.assignmentId),
+                                    )
                                   }
                                   className="absolute left-1 right-1 rounded-md text-white text-[10px] px-1.5 py-1 cursor-grab active:cursor-grabbing shadow-sm overflow-hidden"
                                   style={{
                                     top: p.slot * SLOT_PX,
                                     height: len * SLOT_PX - 2,
                                     backgroundColor: sub.color,
-                                    opacity: shade,
-                                    borderLeft:
-                                      p.partsTotal > 1
-                                        ? `3px solid ${sub.color}`
-                                        : undefined,
                                   }}
                                 >
-                                  <div className="font-semibold truncate">
-                                    {a.title}
-                                  </div>
+                                  <div className="font-semibold truncate">{a.title}</div>
                                   <div className="opacity-90 truncate">
-                                    {fmtTime(p.slot)} · {p.durationMin}m
-                                    {p.partsTotal > 1 &&
-                                      ` · Part ${p.partIndex}/${p.partsTotal}`}
+                                    {fmtTime(p.slot)} · {blocks[p.assignmentId].durationMin}m
                                   </div>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-xs">
-                                  {p.partsTotal > 1
-                                    ? `${a.title} — Part ${p.partIndex} of ${p.partsTotal}${a.splitManual ? " (manual)" : " (auto)"}`
-                                    : a.title}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  Double-click to unschedule
-                                </p>
+                                <p className="text-xs">Double-click to unschedule</p>
                               </TooltipContent>
                             </Tooltip>
                           );
@@ -628,17 +423,6 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
             </CardContent>
           </Card>
         </div>
-
-        {Object.keys(flagged).length > 0 && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive flex items-start gap-2">
-            <Scissors className="h-4 w-4 mt-px shrink-0" />
-            <div>
-              <strong>Some work didn't fit this week.</strong> Open the Assignments
-              page and use <em>Split</em> to break long tasks into more sessions,
-              or extend the deadline.
-            </div>
-          </div>
-        )}
       </div>
     </TooltipProvider>
   );
