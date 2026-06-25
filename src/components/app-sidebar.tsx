@@ -36,41 +36,60 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex items-center gap-3 px-2 py-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary shadow-sm text-primary-foreground">
             <GraduationCap className="h-5 w-5" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold">Scholaria</div>
-            <div className="truncate text-xs text-muted-foreground">Westwood High · Grade 11</div>
+            <div className="truncate text-[0.9rem] font-bold tracking-tight">Scholaria</div>
+            <div className="truncate text-[0.7rem] text-muted-foreground">Westwood High · Grade 11</div>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+
+      <SidebarContent className="pt-2">
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 mb-1">
+            Workspace
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="gap-0.5">
+              {items.map((item) => {
+                const active = pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      tooltip={item.title}
+                      className={`h-9 rounded-lg px-3 text-[0.85rem] font-medium transition-all duration-150 ${
+                        active
+                          ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/95 hover:text-primary-foreground"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      }`}
+                    >
+                      <Link to={item.url}>
+                        <item.icon className={`h-4 w-4 shrink-0 ${active ? "opacity-100" : "opacity-70"}`} />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+
+      <SidebarFooter className="border-t border-sidebar-border pt-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings">
-              <Settings />
+            <SidebarMenuButton
+              tooltip="Settings"
+              className="h-9 rounded-lg px-3 text-[0.85rem] font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Settings className="h-4 w-4 opacity-70" />
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

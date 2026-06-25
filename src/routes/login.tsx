@@ -1,16 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  Eye,
-  EyeOff,
-  GraduationCap,
-  Loader2,
-  Lock,
-  Mail,
-  ShieldCheck,
-  User as UserIcon,
-} from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Loader as Loader2, Lock, Mail, ShieldCheck, User as UserIcon, BookOpen, Calendar, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +32,13 @@ const ROLES: { value: UserRole; label: string; hint: string }[] = [
   { value: "parent", label: "Parent", hint: "View-only" },
 ];
 
+const FEATURE_PILLS = [
+  { icon: ShieldCheck, label: "Role-based access" },
+  { icon: Calendar, label: "Smart deadlines" },
+  { icon: Bell, label: "Unified inbox" },
+  { icon: BookOpen, label: "Resource library" },
+];
+
 function LoginPage() {
   const { isAuthenticated, isReady } = useAuth();
   const navigate = useNavigate();
@@ -51,46 +49,76 @@ function LoginPage() {
   }, [isReady, isAuthenticated, navigate]);
 
   return (
-    <div className="grid min-h-dvh w-full lg:grid-cols-2">
-      <aside className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div className="absolute inset-0 opacity-30" aria-hidden>
-          <div className="absolute -left-20 top-10 h-80 w-80 rounded-full bg-accent/40 blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-primary-foreground/10 blur-3xl" />
+    <div className="grid min-h-dvh w-full lg:grid-cols-[1fr_0.9fr]">
+      {/* Left panel */}
+      <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-14"
+        style={{
+          background: "linear-gradient(135deg, oklch(0.38 0.15 258) 0%, oklch(0.52 0.17 258) 55%, oklch(0.58 0.19 222) 100%)",
+        }}
+      >
+        {/* Decorative blobs */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/5 blur-3xl" />
+          <div className="absolute -bottom-16 right-0 h-80 w-80 rounded-full bg-white/5 blur-3xl" />
+          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/3 blur-2xl" />
         </div>
-        <div className="relative flex items-center gap-2 text-lg font-semibold">
-          <GraduationCap className="h-6 w-6" />
-          Scholaria
+
+        <div className="relative flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 backdrop-blur-sm">
+            <GraduationCap className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-lg font-bold text-white">Scholaria</span>
         </div>
-        <div className="relative space-y-6">
-          <h1 className="text-4xl font-bold leading-tight">Everything academic, in one calm place.</h1>
-          <p className="max-w-md text-primary-foreground/80">
-            Assignments, notices, schedules and study materials — unified so students can focus on learning, not searching.
-          </p>
-          <ul className="space-y-3 text-sm text-primary-foreground/90">
-            <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4" /> Role-based access for students, teachers and parents</li>
-            <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4" /> Deadline tracking that actually reduces stress</li>
-            <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4" /> One inbox for every classroom announcement</li>
-          </ul>
+
+        <div className="relative space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-5xl font-extrabold leading-[1.1] tracking-tight text-white">
+              Everything<br />academic,<br />one place.
+            </h1>
+            <p className="max-w-xs text-base text-white/75 leading-relaxed">
+              Assignments, notices, schedules and study materials — unified so students focus on learning, not searching.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FEATURE_PILLS.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 backdrop-blur-sm"
+              >
+                <Icon className="h-3.5 w-3.5 text-white/80" />
+                <span className="text-xs font-medium text-white/90">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <p className="relative text-xs text-primary-foreground/60">© 2026 Scholaria School Network</p>
+
+        <p className="relative text-xs text-white/40">© 2026 Scholaria School Network</p>
       </aside>
 
-      <section className="flex items-center justify-center px-4 py-10 sm:px-8">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Scholaria</span>
+      {/* Right panel */}
+      <section className="flex items-center justify-center bg-background px-6 py-12 sm:px-10">
+        <div className="w-full max-w-[22rem]">
+          {/* Mobile logo */}
+          <div className="mb-8 flex items-center gap-2.5 lg:hidden">
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <span className="text-lg font-bold">Scholaria</span>
           </div>
 
           <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Create account</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 rounded-full border border-border/60 bg-muted/50 p-1">
+              <TabsTrigger value="signin" className="rounded-full text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Sign in
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-full text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Create account
+              </TabsTrigger>
             </TabsList>
-            <TabsContent value="signin" className="mt-6">
+            <TabsContent value="signin" className="mt-7">
               <SignInForm />
             </TabsContent>
-            <TabsContent value="signup" className="mt-6">
+            <TabsContent value="signup" className="mt-7">
               <SignUpForm onDone={() => setTab("signin")} />
             </TabsContent>
           </Tabs>
@@ -119,8 +147,7 @@ function SignInForm() {
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Sign in failed";
-      toast.error(msg);
+      toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {
       setSubmitting(false);
     }
@@ -143,20 +170,20 @@ function SignInForm() {
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Sign in to your dashboard to continue.</p>
+      <div className="mb-7 space-y-1">
+        <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
+        <p className="text-sm text-muted-foreground">Sign in to your dashboard to continue.</p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
           <Label htmlFor="signin-email">Email</Label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signin-email" type="email" autoComplete="email" placeholder="you@school.edu"
-              className="h-11 pl-9" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              className="h-11 rounded-xl pl-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="signin-password">Password</Label>
             <button type="button" onClick={() => { setForgotEmail(email); setForgotOpen(true); }}
@@ -165,24 +192,24 @@ function SignInForm() {
             </button>
           </div>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signin-password" type={showPw ? "text" : "password"} autoComplete="current-password"
-              placeholder="••••••••" className="h-11 pl-9 pr-10" value={password}
+              placeholder="••••••••" className="h-11 rounded-xl pl-10 pr-11" value={password}
               onChange={(e) => setPassword(e.target.value)} required />
             <button type="button" onClick={() => setShowPw((s) => !s)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
               aria-label={showPw ? "Hide password" : "Show password"}>
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
-        <Button type="submit" className="h-11 w-full" disabled={submitting}>
+        <Button type="submit" className="mt-2 h-11 w-full rounded-xl text-sm font-semibold shadow-sm" disabled={submitting}>
           {submitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…</>) : "Sign in"}
         </Button>
       </form>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <form onSubmit={handleForgot}>
             <DialogHeader>
               <DialogTitle>Reset your password</DialogTitle>
@@ -193,7 +220,8 @@ function SignInForm() {
             <div className="mt-4 space-y-2">
               <Label htmlFor="forgot-email">Email</Label>
               <Input id="forgot-email" type="email" required value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)} placeholder="you@school.edu" />
+                onChange={(e) => setForgotEmail(e.target.value)} placeholder="you@school.edu"
+                className="h-11 rounded-xl" />
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="ghost" onClick={() => setForgotOpen(false)}>Cancel</Button>
@@ -250,71 +278,75 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold tracking-tight">Create your account</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Join your school's academic dashboard.</p>
+      <div className="mb-7 space-y-1">
+        <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
+        <p className="text-sm text-muted-foreground">Join your school's academic dashboard.</p>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
           <Label>I am joining as</Label>
           <div className="grid grid-cols-3 gap-2">
             {ROLES.map((r) => {
               const active = role === r.value;
               return (
                 <button key={r.value} type="button" onClick={() => setRole(r.value)}
-                  className={`rounded-lg border px-3 py-2.5 text-left transition ${
-                    active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:border-foreground/30"
-                  }`} aria-pressed={active}>
-                  <div className="text-sm font-medium">{r.label}</div>
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all duration-150 ${
+                    active
+                      ? "border-primary bg-primary/8 shadow-sm ring-1 ring-primary"
+                      : "border-border hover:border-border/80 hover:bg-muted/50"
+                  }`}
+                  style={active ? { backgroundColor: "color-mix(in oklab, var(--primary) 8%, transparent)" } : undefined}
+                  aria-pressed={active}>
+                  <div className="text-sm font-semibold">{r.label}</div>
                   <div className="mt-0.5 text-[11px] leading-tight text-muted-foreground">{r.hint}</div>
                 </button>
               );
             })}
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="signup-name">Full name</Label>
           <div className="relative">
-            <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <UserIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signup-name" autoComplete="name" required value={name}
-              onChange={(e) => setName(e.target.value)} className="h-11 pl-9" placeholder="Alex Okafor" />
+              onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl pl-10" placeholder="Alex Okafor" />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="signup-email">Email</Label>
           <div className="relative">
-            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signup-email" type="email" autoComplete="email" required value={email}
-              onChange={(e) => setEmail(e.target.value)} className="h-11 pl-9" placeholder="you@school.edu" />
+              onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl pl-10" placeholder="you@school.edu" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="signup-grade">Grade / class</Label>
             <Input id="signup-grade" value={grade} onChange={(e) => setGrade(e.target.value)}
-              className="h-11" placeholder="e.g. Grade 11" />
+              className="h-11 rounded-xl" placeholder="e.g. Grade 11" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="signup-age">Age</Label>
             <Input id="signup-age" type="number" min={1} max={129} value={age}
-              onChange={(e) => setAge(e.target.value)} className="h-11" placeholder="16" />
+              onChange={(e) => setAge(e.target.value)} className="h-11 rounded-xl" placeholder="16" />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <Label htmlFor="signup-password">Password</Label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input id="signup-password" type={showPw ? "text" : "password"} autoComplete="new-password"
               required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
-              className="h-11 pl-9 pr-10" placeholder="At least 6 characters" />
+              className="h-11 rounded-xl pl-10 pr-11" placeholder="At least 6 characters" />
             <button type="button" onClick={() => setShowPw((s) => !s)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
               aria-label={showPw ? "Hide password" : "Show password"}>
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
-        <Button type="submit" className="h-11 w-full" disabled={submitting}>
+        <Button type="submit" className="mt-2 h-11 w-full rounded-xl text-sm font-semibold shadow-sm" disabled={submitting}>
           {submitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account…</>) : "Create account"}
         </Button>
       </form>
