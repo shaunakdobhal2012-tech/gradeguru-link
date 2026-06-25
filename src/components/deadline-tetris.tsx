@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Sparkles, Save, Wand2, RotateCcw, AlertTriangle, Scissors } from "lucide-react";
+import { Sparkles, Save, Wand as Wand2, RotateCcw, TriangleAlert as AlertTriangle, Scissors } from "lucide-react";
 import { schedule, subjectById } from "@/lib/mock-data";
 import {
   assignmentsStore,
@@ -200,7 +200,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
 
     // 2. Decide auto-splits (skip manual splits).
     sorted.forEach((a) => {
-      if (a.splitManual) return; // respect manual
+      if (a.splitManual) return;
       if (a.estimateMin > 90) {
         const parts = Math.min(5, Math.max(2, Math.ceil(a.estimateMin / 60)));
         assignmentsStore.applyAutoSplit(a.id, parts);
@@ -215,10 +215,9 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
       (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
     );
 
-    // Per-day used-min ledger; classes count toward the 4h cap.
-    const usedByDay: number[] = WEEK.map((_, d) =>
-      classesFor(d).reduce((s, c) => s + c.length * SLOT_MIN, 0),
-    );
+    // Per-day assignment-minutes ledger (classes do NOT count toward the 4h cap).
+    const assignmentMinByDay: number[] = WEEK.map(() => 0);
+    // Occupied slots ledger includes classes so we don't overlap them.
     const occByDay: Set<number>[] = WEEK.map((_, d) => {
       const set = new Set<number>();
       classesFor(d).forEach((c) => {
@@ -230,20 +229,35 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     const next: ChunkPlacement[] = [];
     const flags: Record<string, string> = {};
 
+    // Returns candidate day indices in preference order for a given deadline day:
+    // weekdays first (Mon–Fri), then weekend, both ordered by proximity to deadline.
+    function candidateDays(lastDay: number): number[] {
+      const weekdays: number[] = [];
+      const weekend: number[] = [];
+      for (let d = lastDay; d >= 0; d--) {
+        (d < 5 ? weekdays : weekend).push(d);
+      }
+      // Forward overflow (after deadline but still within the week), weekdays first.
+      const fwdWeekdays: number[] = [];
+      const fwdWeekend: number[] = [];
+      for (let d = lastDay + 1; d < WEEK.length; d++) {
+        (d < 5 ? fwdWeekdays : fwdWeekend).push(d);
+      }
+      return [...weekdays, ...fwdWeekdays, ...weekend, ...fwdWeekend];
+    }
+
     function placeChunkInDay(c: Chunk, d: number): boolean {
       const len = chunkLen(c.durationMin);
-      if (usedByDay[d] + c.durationMin > DAILY_HOMEWORK_CAP_MIN) return false;
+      // 4h cap applies only to assignment time, not to classes.
+      if (assignmentMinByDay[d] + c.durationMin > DAILY_HOMEWORK_CAP_MIN) return false;
       for (let s = 0; s + len <= TOTAL_SLOTS; s++) {
         let ok = true;
         for (let i = 0; i < len; i++) {
-          if (occByDay[d].has(s + i)) {
-            ok = false;
-            break;
-          }
+          if (occByDay[d].has(s + i)) { ok = false; break; }
         }
         if (ok) {
           for (let i = 0; i < len; i++) occByDay[d].add(s + i);
-          usedByDay[d] += c.durationMin;
+          assignmentMinByDay[d] += c.durationMin;
           next.push({
             chunkId: c.chunkId,
             assignmentId: c.assignmentId,
@@ -261,22 +275,32 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
 
     for (const a of freshSorted) {
       const chunks = chunksFor(a);
-      // Target last day for this assignment.
       const lastDay = Math.min(WEEK.length - 1, Math.max(0, dueDayIdx(a.dueDate)));
-      // Spread one chunk per day, ending on lastDay, going backwards.
+
+      // Build a per-chunk target day spreading backwards from the deadline,
+      // then resolve each chunk using weekday-first candidate ordering.
       const placedChunks: boolean[] = [];
       for (let i = chunks.length - 1; i >= 0; i--) {
         const targetDay = Math.max(0, lastDay - (chunks.length - 1 - i));
+        // Pick the least-loaded candidate day (weekdays prioritised).
+        const candidates = candidateDays(targetDay);
+        // Sort candidates by current assignment load so we spread evenly,
+        // but preserve weekday-before-weekend preference within equal-load days.
+        const sorted = candidates.slice().sort(
+          (a, b) => assignmentMinByDay[a] - assignmentMinByDay[b],
+        );
+        // Re-inject weekday ordering: among days with equal load prefer weekdays.
+        const byLoad = sorted.sort((a, b) => {
+          const diff = assignmentMinByDay[a] - assignmentMinByDay[b];
+          if (diff !== 0) return diff;
+          // Tie-break: weekday (< 5) beats weekend.
+          return (a < 5 ? 0 : 1) - (b < 5 ? 0 : 1);
+        });
+
         let placed = false;
-        // Try target day then earlier days.
-        for (let d = targetDay; d >= 0 && !placed; d--) {
+        for (const d of byLoad) {
           placed = placeChunkInDay(chunks[i], d);
-        }
-        // Couldn't place backwards — try later (within week).
-        if (!placed) {
-          for (let d = targetDay + 1; d < WEEK.length && !placed; d++) {
-            placed = placeChunkInDay(chunks[i], d);
-          }
+          if (placed) break;
         }
         placedChunks[i] = placed;
       }
