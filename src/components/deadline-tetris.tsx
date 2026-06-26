@@ -239,19 +239,24 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
   }
 
   function autoArrange() {
+    const DAILY_CAP_MIN = 10 * 60; // 10 hour assignment cap per day
     const sorted = [...items].sort((a, b) => b.durationMin - a.durationMin);
     const next: Placement[] = [];
     const occByDay: Record<number, Set<number>> = {};
+    const assignedMinByDay: Record<number, number> = {};
     for (let d = 0; d < WEEK.length; d++) {
       occByDay[d] = new Set<number>();
+      assignedMinByDay[d] = 0;
       classesFor(d).forEach((c) => {
         for (let i = 0; i < c.length; i++) occByDay[d].add(c.slot + i);
       });
     }
+    let skipped = 0;
     for (const it of sorted) {
       const len = Math.max(1, Math.round(it.durationMin / SLOT_MIN));
       let placed = false;
       for (let d = 0; d < WEEK.length && !placed; d++) {
+        if (assignedMinByDay[d] + it.durationMin > DAILY_CAP_MIN) continue;
         for (let s = 0; s + len <= TOTAL_SLOTS; s++) {
           let ok = true;
           for (let i = 0; i < len; i++)
@@ -261,15 +266,23 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
             }
           if (ok) {
             for (let i = 0; i < len; i++) occByDay[d].add(s + i);
+            assignedMinByDay[d] += it.durationMin;
             next.push({ itemId: it.id, dayIdx: d, slot: s });
             placed = true;
             break;
           }
         }
       }
+      if (!placed) skipped++;
     }
     setPlacements(next);
-    toast.success(`Auto-arranged ${next.length} blocks around your classes.`);
+    if (skipped > 0) {
+      toast.success(
+        `Auto-arranged ${next.length} blocks · ${skipped} left out to keep days under 10h.`,
+      );
+    } else {
+      toast.success(`Auto-arranged ${next.length} blocks around your classes.`);
+    }
   }
 
   function clearAll() {
