@@ -38,6 +38,7 @@ function AssignmentsPage() {
   const [status, setStatus] = useState<AssignmentStatus | "all">("all");
   const [subject, setSubject] = useState<string>("all");
   const [q, setQ] = useState("");
+  const splits = useSplits();
 
   const filtered = assignments.filter((a) =>
     (status === "all" || a.status === status) &&
