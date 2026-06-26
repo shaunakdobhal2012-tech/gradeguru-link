@@ -90,6 +90,8 @@ function AssignmentsPage() {
           const sub = subjectById(a.subject);
           const d = daysUntil(a.dueDate);
           const isOverdue = a.status === "overdue";
+          const est = estimateMinutes(a);
+          const parts = splits[a.id];
           return (
             <Card key={a.id} className="group transition-shadow hover:shadow-md">
               <CardContent className="space-y-3 p-5">
@@ -103,6 +105,60 @@ function AssignmentsPage() {
                 <div>
                   <h3 className="font-semibold leading-tight">{a.title}</h3>
                   <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{a.description}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 cursor-not-allowed font-normal"
+                    title={`AI estimate · ${est.type} · auto-calculated`}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    <span className="font-medium">{fmtMinutes(est.minutes)}</span>
+                    <Lock className="h-2.5 w-2.5 opacity-60" />
+                  </Badge>
+                  {parts ? (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 cursor-pointer"
+                      style={{ borderStyle: "dotted", borderColor: sub.color, color: sub.color }}
+                      onClick={() => {
+                        setSplit(a.id, null);
+                        toast(`Merged ${a.title} back into one block.`);
+                      }}
+                      title="Click to undo split"
+                    >
+                      <Split className="h-3 w-3" /> {parts}× {fmtMinutes(Math.round(est.minutes / parts))}
+                    </Badge>
+                  ) : (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs">
+                          <Split className="h-3 w-3" /> Split
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-2" align="start">
+                        <div className="mb-1.5 text-[11px] text-muted-foreground">Sessions</div>
+                        <div className="flex gap-1">
+                          {[2, 3, 4, 5].map((n) => (
+                            <Button
+                              key={n}
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-9 px-0 text-xs"
+                              onClick={() => {
+                                setSplit(a.id, n);
+                                toast.success(
+                                  `Split into ${n} parts · ~${fmtMinutes(Math.round(est.minutes / n))} each`,
+                                );
+                              }}
+                            >
+                              {n}
+                            </Button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
                 </div>
                 <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
                   <div className={isOverdue ? "font-medium text-destructive" : "text-muted-foreground"}>
