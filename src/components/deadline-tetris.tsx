@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -12,8 +11,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Sparkles, Save, Wand2, RotateCcw } from "lucide-react";
+import { Sparkles, Save, Wand2, RotateCcw, Lock } from "lucide-react";
 import { assignments, schedule, subjectById } from "@/lib/mock-data";
+import { estimateMinutes, fmtMinutes, useSplits } from "@/lib/assignment-estimate";
 
 // Week of June 22–28, 2026 (Mon–Sun)
 const WEEK = [
@@ -32,6 +32,7 @@ const SLOT_MIN = 30;
 const SLOTS_PER_HOUR = 60 / SLOT_MIN;
 const TOTAL_SLOTS = (END_HOUR - START_HOUR) * SLOTS_PER_HOUR; // 32
 const SLOT_PX = 22;
+const DEFAULT_PART_SLOT = (16 - START_HOUR) * SLOTS_PER_HOUR; // 4 PM
 
 function fmtTime(slotIdx: number) {
   const total = START_HOUR * 60 + slotIdx * SLOT_MIN;
@@ -47,7 +48,6 @@ function parseHHMM(t: string) {
   return h * 60 + m;
 }
 
-// Classes pulled from "Today's schedule" data — recurring Mon–Fri, 1 hr each
 function classesFor(dayIdx: number) {
   if (dayIdx > 4) return [];
   return schedule.map((s) => {
@@ -56,44 +56,129 @@ function classesFor(dayIdx: number) {
     return {
       id: `class-${dayIdx}-${s.time}`,
       slot,
-      length: 2, // 1 hr
+      length: 2,
       label: s.subject,
       room: s.room,
     };
   });
 }
 
-type Placement = {
-  assignmentId: string;
-  dayIdx: number;
-  slot: number;
-};
-
-type Block = {
-  assignmentId: string;
-  durationMin: number; // editable
-};
-
 const pendingAssignments = assignments.filter(
   (a) => a.status === "pending" || a.status === "in-progress" || a.status === "overdue",
 );
 
+type Item = {
+  id: string;
+  assignmentId: string;
+  label: string;
+  subject: string;
+  durationMin: number;
+  isPart: boolean;
+  partIndex?: number;
+  partTotal?: number;
+  dueDate: string;
+};
+
+type Placement = { itemId: string; dayIdx: number; slot: number };
+
+function snap30(n: number) {
+  return Math.max(30, Math.round(n / 30) * 30);
+}
+
+function findDueIdx(dueDate: string): number {
+  const idx = WEEK.findIndex((d) => d.date === dueDate);
+  if (idx >= 0) return idx;
+  if (new Date(dueDate).getTime() < new Date(WEEK[0].date).getTime()) return 0;
+  return WEEK.length - 1;
+}
+
 export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
-  const [blocks, setBlocks] = useState<Record<string, Block>>(() =>
-    Object.fromEntries(
-      pendingAssignments.map((a) => [a.id, { assignmentId: a.id, durationMin: 60 }]),
-    ),
-  );
+  const splits = useSplits();
+
+  const items: Item[] = useMemo(() => {
+    const out: Item[] = [];
+    for (const a of pendingAssignments) {
+      const est = estimateMinutes(a).minutes;
+      const parts = splits[a.id];
+      if (parts && parts >= 2) {
+        const per = snap30(est / parts);
+        for (let i = 0; i < parts; i++) {
+          out.push({
+            id: `${a.id}::${i}`,
+            assignmentId: a.id,
+            label: `${a.title} · Part ${i + 1}/${parts}`,
+            subject: a.subject,
+            durationMin: per,
+            isPart: true,
+            partIndex: i + 1,
+            partTotal: parts,
+            dueDate: a.dueDate,
+          });
+        }
+      } else {
+        out.push({
+          id: a.id,
+          assignmentId: a.id,
+          label: a.title,
+          subject: a.subject,
+          durationMin: snap30(est),
+          isPart: false,
+          dueDate: a.dueDate,
+        });
+      }
+    }
+    return out;
+  }, [splits]);
+
+  const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [heatmap, setHeatmap] = useState(false);
   const [flashCell, setFlashCell] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const placedIds = new Set(placements.map((p) => p.assignmentId));
-  const unplaced = pendingAssignments.filter((a) => !placedIds.has(a.id));
+  // Drop placements that point to removed item ids when splits change
+  useEffect(() => {
+    setPlacements((prev) => prev.filter((p) => itemById.has(p.itemId)));
+  }, [itemById]);
 
-  function blockLen(id: string) {
-    return Math.max(1, Math.round((blocks[id]?.durationMin ?? 60) / SLOT_MIN));
+  // Auto-place freshly created split parts on consecutive days before due date
+  const seededSplits = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    setPlacements((prev) => {
+      const next = [...prev];
+      const placedIds = new Set(next.map((p) => p.itemId));
+      for (const [aid, parts] of Object.entries(splits)) {
+        const key = `${aid}:${parts}`;
+        if (seededSplits.current.has(key)) continue;
+        const partItems = items.filter((i) => i.assignmentId === aid && i.isPart);
+        if (partItems.length !== parts) continue;
+        const a = pendingAssignments.find((x) => x.id === aid);
+        if (!a) continue;
+        const dueIdx = findDueIdx(a.dueDate);
+        const startDay = Math.max(0, dueIdx - parts + 1);
+        partItems.forEach((it, k) => {
+          if (placedIds.has(it.id)) return;
+          const dayIdx = Math.min(WEEK.length - 1, startDay + k);
+          next.push({ itemId: it.id, dayIdx, slot: DEFAULT_PART_SLOT });
+        });
+        seededSplits.current.add(key);
+      }
+      // forget keys for removed splits
+      for (const key of [...seededSplits.current]) {
+        const [aid] = key.split(":");
+        if (!splits[aid]) seededSplits.current.delete(key);
+      }
+      return next;
+    });
+  }, [splits, items]);
+
+  const placedIds = new Set(placements.map((p) => p.itemId));
+  const unplaced = items.filter((i) => !placedIds.has(i.id));
+
+  function itemLen(id: string) {
+    const it = itemById.get(id);
+    return Math.max(1, Math.round((it?.durationMin ?? 60) / SLOT_MIN));
   }
 
   function occupiedSlots(dayIdx: number, exceptId?: string) {
@@ -102,9 +187,9 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
       for (let i = 0; i < c.length; i++) occ.add(c.slot + i);
     });
     placements
-      .filter((p) => p.dayIdx === dayIdx && p.assignmentId !== exceptId)
+      .filter((p) => p.dayIdx === dayIdx && p.itemId !== exceptId)
       .forEach((p) => {
-        const len = blockLen(p.assignmentId);
+        const len = itemLen(p.itemId);
         for (let i = 0; i < len; i++) occ.add(p.slot + i);
       });
     return occ;
@@ -115,12 +200,11 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     classesFor(dayIdx).forEach((c) => (mins += c.length * SLOT_MIN));
     placements
       .filter((p) => p.dayIdx === dayIdx)
-      .forEach((p) => (mins += blocks[p.assignmentId]?.durationMin ?? 60));
+      .forEach((p) => (mins += itemById.get(p.itemId)?.durationMin ?? 60));
     return mins / 60;
   }
 
   function heatColor(hours: number) {
-    // 0 → green; 10+ → red
     const t = Math.min(1, hours / 10);
     const r = Math.round(34 + (239 - 34) * t);
     const g = Math.round(197 - (197 - 68) * t);
@@ -128,14 +212,14 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     return `rgba(${r}, ${g}, ${b}, 0.18)`;
   }
 
-  function tryPlace(assignmentId: string, dayIdx: number, slot: number) {
-    const len = blockLen(assignmentId);
+  function tryPlace(itemId: string, dayIdx: number, slot: number) {
+    const len = itemLen(itemId);
     if (slot < 0 || slot + len > TOTAL_SLOTS) return false;
-    const occ = occupiedSlots(dayIdx, assignmentId);
+    const occ = occupiedSlots(dayIdx, itemId);
     for (let i = 0; i < len; i++) if (occ.has(slot + i)) return false;
     setPlacements((prev) => {
-      const next = prev.filter((p) => p.assignmentId !== assignmentId);
-      next.push({ assignmentId, dayIdx, slot });
+      const next = prev.filter((p) => p.itemId !== itemId);
+      next.push({ itemId, dayIdx, slot });
       return next;
     });
     return true;
@@ -147,7 +231,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     if (!ok) {
       const key = `${dayIdx}-${slot}`;
       setFlashCell(key);
-      const totalH = dayHours(dayIdx) + (blocks[draggingId]?.durationMin ?? 60) / 60;
+      const totalH = dayHours(dayIdx) + (itemById.get(draggingId)?.durationMin ?? 60) / 60;
       toast.error(`That's ${totalH.toFixed(1)} hours of work — move something?`);
       setTimeout(() => setFlashCell(null), 700);
     }
@@ -155,10 +239,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
   }
 
   function autoArrange() {
-    // Greedy: longest first, earliest free slot Mon→Sun, avoid classes
-    const sorted = [...pendingAssignments].sort(
-      (a, b) => (blocks[b.id]?.durationMin ?? 60) - (blocks[a.id]?.durationMin ?? 60),
-    );
+    const sorted = [...items].sort((a, b) => b.durationMin - a.durationMin);
     const next: Placement[] = [];
     const occByDay: Record<number, Set<number>> = {};
     for (let d = 0; d < WEEK.length; d++) {
@@ -167,16 +248,20 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
         for (let i = 0; i < c.length; i++) occByDay[d].add(c.slot + i);
       });
     }
-    for (const a of sorted) {
-      const len = Math.max(1, Math.round((blocks[a.id]?.durationMin ?? 60) / SLOT_MIN));
+    for (const it of sorted) {
+      const len = Math.max(1, Math.round(it.durationMin / SLOT_MIN));
       let placed = false;
       for (let d = 0; d < WEEK.length && !placed; d++) {
         for (let s = 0; s + len <= TOTAL_SLOTS; s++) {
           let ok = true;
-          for (let i = 0; i < len; i++) if (occByDay[d].has(s + i)) { ok = false; break; }
+          for (let i = 0; i < len; i++)
+            if (occByDay[d].has(s + i)) {
+              ok = false;
+              break;
+            }
           if (ok) {
             for (let i = 0; i < len; i++) occByDay[d].add(s + i);
-            next.push({ assignmentId: a.id, dayIdx: d, slot: s });
+            next.push({ itemId: it.id, dayIdx: d, slot: s });
             placed = true;
             break;
           }
@@ -184,7 +269,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
       }
     }
     setPlacements(next);
-    toast.success(`Auto-arranged ${next.length} assignments around your classes.`);
+    toast.success(`Auto-arranged ${next.length} blocks around your classes.`);
   }
 
   function clearAll() {
@@ -199,24 +284,18 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
     const first = [...placements].sort(
       (a, b) => a.dayIdx - b.dayIdx || a.slot - b.slot,
     )[0];
-    const a = pendingAssignments.find((x) => x.id === first.assignmentId)!;
+    const it = itemById.get(first.itemId);
+    if (!it) return;
     toast.success("Week saved · gentle reminders scheduled", {
-      description: `You planned to start your ${a.title} at ${fmtTime(first.slot)} on ${WEEK[first.dayIdx].key}.`,
+      description: `You planned to start your ${it.label} at ${fmtTime(first.slot)} on ${WEEK[first.dayIdx].key}.`,
       duration: 6000,
     });
-  }
-
-  function updateDuration(id: string, mins: number) {
-    setBlocks((prev) => ({
-      ...prev,
-      [id]: { assignmentId: id, durationMin: Math.max(30, Math.min(480, mins)) },
-    }));
   }
 
   const totals = useMemo(
     () => WEEK.map((_, d) => dayHours(d)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [placements, blocks],
+    [placements, items],
   );
 
   return (
@@ -229,7 +308,7 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
             </h2>
             {!compact && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Drag assignments into your week. Classes are blocked in grey.
+                Drag assignments into your week. Classes are blocked in grey. Times are AI-estimated.
               </p>
             )}
           </div>
@@ -260,35 +339,40 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
               </div>
               {unplaced.length === 0 && (
                 <p className="text-xs text-muted-foreground py-4 text-center">
-                  All assignments scheduled. Nice work.
+                  All blocks scheduled. Nice work.
                 </p>
               )}
               <div className={`space-y-2 ${compact ? "max-h-40 overflow-y-auto" : ""}`}>
-                {unplaced.map((a) => {
-                  const sub = subjectById(a.subject);
+                {unplaced.map((it) => {
+                  const sub = subjectById(it.subject);
                   return (
                     <div
-                      key={a.id}
+                      key={it.id}
                       draggable
-                      onDragStart={() => setDraggingId(a.id)}
+                      onDragStart={() => setDraggingId(it.id)}
                       onDragEnd={() => setDraggingId(null)}
                       className="cursor-grab active:cursor-grabbing rounded-md border-l-4 bg-card border px-2 py-1.5 text-xs shadow-sm hover:shadow transition"
-                      style={{ borderLeftColor: sub.color }}
+                      style={{
+                        borderLeftColor: sub.color,
+                        borderStyle: it.isPart ? "dotted" : undefined,
+                        borderColor: it.isPart ? sub.color : undefined,
+                        borderLeftStyle: "solid",
+                      }}
                     >
-                      <div className="font-medium truncate">{a.title}</div>
+                      <div className="font-medium truncate">
+                        {it.isPart ? `Part ${it.partIndex}/${it.partTotal}` : it.label}
+                      </div>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground">{sub.name}</span>
-                        <Input
-                          type="number"
-                          min={30}
-                          max={480}
-                          step={30}
-                          value={blocks[a.id]?.durationMin ?? 60}
-                          onChange={(e) => updateDuration(a.id, Number(e.target.value))}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-6 w-14 text-[10px] px-1 ml-auto"
-                        />
-                        <span className="text-[10px] text-muted-foreground">min</span>
+                        <span className="text-[10px] text-muted-foreground truncate">{sub.name}</span>
+                        <Badge
+                          variant="secondary"
+                          className="ml-auto gap-1 px-1.5 py-0 text-[10px] font-normal"
+                          title="AI estimate — auto-calculated"
+                        >
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {fmtMinutes(it.durationMin)}
+                          <Lock className="h-2.5 w-2.5 opacity-60" />
+                        </Badge>
                       </div>
                     </div>
                   );
@@ -301,7 +385,6 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
           <Card>
             <CardContent className="p-2 sm:p-3 overflow-x-auto">
               <div className="min-w-[640px]">
-                {/* Day headers */}
                 <div
                   className="grid sticky top-0 z-10 bg-card"
                   style={{ gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))` }}
@@ -321,7 +404,6 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                   className="grid relative"
                   style={{ gridTemplateColumns: `48px repeat(${WEEK.length}, minmax(0,1fr))` }}
                 >
-                  {/* time column */}
                   <div>
                     {Array.from({ length: TOTAL_SLOTS }, (_, s) => (
                       <div
@@ -343,7 +425,6 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                         background: heatmap ? heatColor(totals[dayIdx]) : undefined,
                       }}
                     >
-                      {/* slot grid */}
                       {Array.from({ length: TOTAL_SLOTS }, (_, s) => {
                         const key = `${dayIdx}-${s}`;
                         const flash = flashCell === key;
@@ -360,7 +441,6 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                         );
                       })}
 
-                      {/* classes */}
                       {classesFor(dayIdx).map((c) => (
                         <Tooltip key={c.id}>
                           <TooltipTrigger asChild>
@@ -378,23 +458,23 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                         </Tooltip>
                       ))}
 
-                      {/* placed blocks */}
                       {placements
                         .filter((p) => p.dayIdx === dayIdx)
                         .map((p) => {
-                          const a = pendingAssignments.find((x) => x.id === p.assignmentId)!;
-                          const sub = subjectById(a.subject);
-                          const len = blockLen(p.assignmentId);
+                          const it = itemById.get(p.itemId);
+                          if (!it) return null;
+                          const sub = subjectById(it.subject);
+                          const len = itemLen(it.id);
                           return (
-                            <Tooltip key={p.assignmentId}>
+                            <Tooltip key={it.id}>
                               <TooltipTrigger asChild>
                                 <div
                                   draggable
-                                  onDragStart={() => setDraggingId(p.assignmentId)}
+                                  onDragStart={() => setDraggingId(it.id)}
                                   onDragEnd={() => setDraggingId(null)}
                                   onDoubleClick={() =>
                                     setPlacements((prev) =>
-                                      prev.filter((x) => x.assignmentId !== p.assignmentId),
+                                      prev.filter((x) => x.itemId !== it.id),
                                     )
                                   }
                                   className="absolute left-1 right-1 rounded-md text-white text-[10px] px-1.5 py-1 cursor-grab active:cursor-grabbing shadow-sm overflow-hidden"
@@ -402,16 +482,26 @@ export function DeadlineTetris({ compact = false }: { compact?: boolean }) {
                                     top: p.slot * SLOT_PX,
                                     height: len * SLOT_PX - 2,
                                     backgroundColor: sub.color,
+                                    border: it.isPart ? `1.5px dotted rgba(255,255,255,0.85)` : undefined,
+                                    opacity: it.isPart ? 0.92 : 1,
                                   }}
                                 >
-                                  <div className="font-semibold truncate">{a.title}</div>
+                                  <div className="font-semibold truncate">
+                                    {it.isPart
+                                      ? `${sub.name} · Part ${it.partIndex}/${it.partTotal}`
+                                      : it.label}
+                                  </div>
                                   <div className="opacity-90 truncate">
-                                    {fmtTime(p.slot)} · {blocks[p.assignmentId].durationMin}m
+                                    {fmtTime(p.slot)} · {fmtMinutes(it.durationMin)}
                                   </div>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-xs">Double-click to unschedule</p>
+                                <p className="text-xs">
+                                  {it.isPart
+                                    ? `${it.label} · double-click to unschedule`
+                                    : "Double-click to unschedule"}
+                                </p>
                               </TooltipContent>
                             </Tooltip>
                           );
