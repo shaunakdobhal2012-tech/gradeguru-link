@@ -4,8 +4,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Paperclip, Upload, Filter } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Paperclip, Upload, Filter, Sparkles, Split, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { assignments, subjects, subjectById, daysUntil, type AssignmentStatus } from "@/lib/mock-data";
+import { estimateMinutes, fmtMinutes, setSplit, useSplits } from "@/lib/assignment-estimate";
 
 export const Route = createFileRoute("/assignments")({
   head: () => ({
