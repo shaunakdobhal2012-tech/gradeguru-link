@@ -14,33 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignments: {
+        Row: {
+          attachments: string[]
+          created_at: string
+          description: string
+          due_date: string
+          estimated_time: number
+          feedback: string | null
+          grade: string | null
+          id: string
+          status: Database["public"]["Enums"]["assignment_status"]
+          student_id: string
+          subject: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: string[]
+          created_at?: string
+          description?: string
+          due_date: string
+          estimated_time?: number
+          feedback?: string | null
+          grade?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["assignment_status"]
+          student_id: string
+          subject: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: string[]
+          created_at?: string
+          description?: string
+          due_date?: string
+          estimated_time?: number
+          feedback?: string | null
+          grade?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["assignment_status"]
+          student_id?: string
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
-          age: number | null
+          avatar_url: string | null
           created_at: string
           email: string
           grade: string | null
           id: string
           name: string
+          school: string | null
+          subjects: string[]
           updated_at: string
         }
         Insert: {
-          age?: number | null
+          avatar_url?: string | null
           created_at?: string
           email: string
           grade?: string | null
           id: string
           name: string
+          school?: string | null
+          subjects?: string[]
           updated_at?: string
         }
         Update: {
-          age?: number | null
+          avatar_url?: string | null
           created_at?: string
           email?: string
           grade?: string | null
           id?: string
           name?: string
+          school?: string | null
+          subjects?: string[]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      resources: {
+        Row: {
+          created_at: string
+          file_url: string
+          id: string
+          subject: string
+          syllabus_relevant: boolean
+          title: string
+          type: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_url: string
+          id?: string
+          subject: string
+          syllabus_relevant?: boolean
+          title: string
+          type: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_url?: string
+          id?: string
+          subject?: string
+          syllabus_relevant?: boolean
+          title?: string
+          type?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          assignment_id: string
+          file_url: string
+          id: string
+          student_id: string
+          submitted_at: string
+        }
+        Insert: {
+          assignment_id: string
+          file_url: string
+          id?: string
+          student_id: string
+          submitted_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          file_url?: string
+          id?: string
+          student_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tetris_placements: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          day: number
+          duration_min: number
+          id: string
+          part_index: number
+          part_total: number
+          start_slot: number
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          day: number
+          duration_min: number
+          id?: string
+          part_index?: number
+          part_total?: number
+          start_slot: number
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          day?: number
+          duration_min?: number
+          id?: string
+          part_index?: number
+          part_total?: number
+          start_slot?: number
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tetris_placements_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timetable: {
+        Row: {
+          created_at: string
+          day: number
+          end_time: string
+          id: string
+          room: string | null
+          start_time: string
+          subject: string
+          teacher_name: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: number
+          end_time: string
+          id?: string
+          room?: string | null
+          start_time: string
+          subject: string
+          teacher_name?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: number
+          end_time?: string
+          id?: string
+          room?: string | null
+          start_time?: string
+          subject?: string
+          teacher_name?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -52,7 +254,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      assignment_status: "pending" | "in_progress" | "submitted" | "graded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -179,6 +381,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      assignment_status: ["pending", "in_progress", "submitted", "graded"],
+    },
   },
 } as const
