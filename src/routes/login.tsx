@@ -292,10 +292,11 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
               className="h-11" placeholder="e.g. Grade 11" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="signup-age">Age</Label>
-            <Input id="signup-age" type="number" min={1} max={129} value={age}
-              onChange={(e) => setAge(e.target.value)} className="h-11" placeholder="16" />
+            <Label htmlFor="signup-school">School</Label>
+            <Input id="signup-school" value={school} onChange={(e) => setSchool(e.target.value)}
+              className="h-11" placeholder="Northgate High" />
           </div>
+
         </div>
         <div className="space-y-2">
           <Label htmlFor="signup-password">Password</Label>
