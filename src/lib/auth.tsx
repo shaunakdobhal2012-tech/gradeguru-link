@@ -9,8 +9,11 @@ export type Profile = {
   name: string;
   email: string;
   grade: string | null;
-  age: number | null;
+  school: string | null;
+  subjects: string[];
+  avatar_url: string | null;
 };
+
 
 export type AuthUser = {
   id: string;
@@ -33,14 +36,15 @@ type AuthContextValue = {
     name: string;
     role: UserRole;
     grade?: string;
-    age?: number;
+    school?: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Profile, "name" | "grade" | "age">>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Profile, "name" | "grade" | "school" | "subjects" | "avatar_url">>) => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -67,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, name, email, grade, age")
+      .select("id, name, email, grade, school, subjects, avatar_url")
       .eq("id", userId)
       .maybeSingle();
     if (error) {
@@ -76,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setProfile(data as Profile | null);
   }, []);
+
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -105,8 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async ({ email, password, name, role, grade, age }: {
-      email: string; password: string; name: string; role: UserRole; grade?: string; age?: number;
+    async ({ email, password, name, role, grade, school }: {
+      email: string; password: string; name: string; role: UserRole; grade?: string; school?: string;
     }) => {
       const redirect = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
       const { data, error } = await supabase.auth.signUp({
@@ -117,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name,
             role,
             ...(grade ? { grade } : {}),
-            ...(typeof age === "number" ? { age: String(age) } : {}),
+            ...(school ? { school } : {}),
           },
           emailRedirectTo: redirect,
         },
@@ -127,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -149,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("profiles")
       .update(patch)
       .eq("id", session.user.id)
-      .select("id, name, email, grade, age")
+      .select("id, name, email, grade, school, subjects, avatar_url")
       .single();
     if (error) throw error;
     setProfile(data as Profile);
