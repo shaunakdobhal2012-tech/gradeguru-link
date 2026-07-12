@@ -9,8 +9,11 @@ export type Profile = {
   name: string;
   email: string;
   grade: string | null;
-  age: number | null;
+  school: string | null;
+  subjects: string[];
+  avatar_url: string | null;
 };
+
 
 export type AuthUser = {
   id: string;
