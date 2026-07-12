@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, name, email, grade, age")
+      .select("id, name, email, grade, school, subjects, avatar_url")
       .eq("id", userId)
       .maybeSingle();
     if (error) {
@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setProfile(data as Profile | null);
   }, []);
+
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
