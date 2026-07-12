@@ -216,24 +216,21 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("student");
   const [grade, setGrade] = useState("");
-  const [age, setAge] = useState("");
+  const [school, setSchool] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password.length < 6) { toast.error("Password must be at least 6 characters."); return; }
-    const ageNum = age ? Number(age) : undefined;
-    if (ageNum !== undefined && (!Number.isFinite(ageNum) || ageNum < 1 || ageNum > 129)) {
-      toast.error("Enter a valid age."); return;
-    }
     setSubmitting(true);
     try {
       const { needsEmailConfirmation } = await signUp({
         email, password, name, role,
         grade: grade.trim() || undefined,
-        age: ageNum,
+        school: school.trim() || undefined,
       });
+
       if (needsEmailConfirmation) {
         toast.success("Account created. Check your email to confirm your address.");
         onDone();
