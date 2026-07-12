@@ -36,14 +36,15 @@ type AuthContextValue = {
     name: string;
     role: UserRole;
     grade?: string;
-    age?: number;
+    school?: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Profile, "name" | "grade" | "age">>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Profile, "name" | "grade" | "school" | "subjects" | "avatar_url">>) => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
+
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
