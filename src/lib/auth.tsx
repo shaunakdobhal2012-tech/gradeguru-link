@@ -110,8 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async ({ email, password, name, role, grade, age }: {
-      email: string; password: string; name: string; role: UserRole; grade?: string; age?: number;
+    async ({ email, password, name, role, grade, school }: {
+      email: string; password: string; name: string; role: UserRole; grade?: string; school?: string;
     }) => {
       const redirect = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
       const { data, error } = await supabase.auth.signUp({
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name,
             role,
             ...(grade ? { grade } : {}),
-            ...(typeof age === "number" ? { age: String(age) } : {}),
+            ...(school ? { school } : {}),
           },
           emailRedirectTo: redirect,
         },
@@ -132,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
