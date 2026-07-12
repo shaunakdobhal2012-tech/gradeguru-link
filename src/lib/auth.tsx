@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("profiles")
       .update(patch)
       .eq("id", session.user.id)
-      .select("id, name, email, grade, age")
+      .select("id, name, email, grade, school, subjects, avatar_url")
       .single();
     if (error) throw error;
     setProfile(data as Profile);
