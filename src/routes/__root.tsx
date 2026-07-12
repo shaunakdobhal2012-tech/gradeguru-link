@@ -113,20 +113,35 @@ function RootComponent() {
 const PUBLIC_ROUTES = new Set(["/", "/login", "/reset-password"]);
 
 function AuthedShell() {
-  const { isAuthenticated, isReady } = useAuth();
+  const { isAuthenticated, isReady, profile } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const isPublic = PUBLIC_ROUTES.has(pathname);
+  const isOnboarding = pathname === "/onboarding";
+  const needsOnboarding = !!profile && (!profile.school || (profile.subjects?.length ?? 0) === 0);
 
   useEffect(() => {
-    if (isReady && !isAuthenticated && !isPublic) {
+    if (!isReady) return;
+    if (!isAuthenticated && !isPublic) {
       navigate({ to: "/", replace: true });
+      return;
     }
-  }, [isReady, isAuthenticated, isPublic, navigate]);
+    if (isAuthenticated && needsOnboarding && !isOnboarding) {
+      navigate({ to: "/onboarding", replace: true });
+    }
+  }, [isReady, isAuthenticated, isPublic, isOnboarding, needsOnboarding, navigate]);
 
   if (isPublic) return <Outlet />;
   if (!isReady || !isAuthenticated) {
     return <div className="min-h-dvh bg-background" aria-hidden />;
+  }
+
+  if (isOnboarding) {
+    return (
+      <main className="min-h-dvh bg-background px-4 py-10">
+        <Outlet />
+      </main>
+    );
   }
 
   return (
@@ -143,4 +158,5 @@ function AuthedShell() {
     </SidebarProvider>
   );
 }
+
 
